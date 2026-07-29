@@ -64,6 +64,8 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         // ---------- Storefront ----------
         .route("/", get(handlers::store::home))
+        .route("/robots.txt", get(handlers::store::robots_txt))
+        .route("/sitemap.xml", get(handlers::store::sitemap_xml))
         .route("/products", get(handlers::store::product_list))
         .route("/product/:slug", get(handlers::store::product_detail))
         .route("/category/:slug", get(handlers::store::category_page))

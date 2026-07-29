@@ -16,6 +16,13 @@ Panel admin no-code untuk mengelola produk, pesanan, pembayaran, tampilan toko, 
 - Halaman statis (Tentang, Kebijakan, dll) yang bisa diatur dari admin
 - 11 tema tampilan siap pakai, ganti tema tanpa ngoding
 
+### SEO (siap mesin pencari)
+- Tag `title`, `description`, `keywords`, dan `canonical` per halaman
+- Open Graph + Twitter Card (judul, deskripsi, gambar) untuk preview saat dibagikan
+- Structured data JSON-LD: `Store` di semua halaman, `Product` + `Offer` (harga IDR, stok) di halaman produk
+- `robots.txt` otomatis (blokir area admin/checkout) + `sitemap.xml` dinamis berisi produk, kategori, dan halaman
+- URL absolut mengikuti `BASE_URL` yang diatur di `.env`
+
 ### Admin (`/admin`)
 - **Dashboard** — ringkasan pendapatan, pesanan, produk, pelanggan + grafik 7 hari
 - **Laporan Keuangan** (`/admin/finance`) — pendapatan kotor, HPP/modal, laba kotor & bersih, margin, rata-rata nilai order, breakdown per metode pembayaran, grafik pendapatan 12 bulan, produk penyumbang pendapatan teratas, plus info tagihan belum dibayar & refund. Filter periode 7 / 30 / 90 hari & 1 tahun.
@@ -116,4 +123,4 @@ Database SQLite disimpan di `data/tokoku.db` (tidak di-commit ke repo). Skema aw
 
 ## 📄 Lisensi
 
-Belum ditentukan. Tambahkan file `LICENSE` bila ingin merilis secara publik.
+Dirilis di bawah lisensi [MIT](LICENSE). Bebas digunakan, dimodifikasi, dan didistribusikan.

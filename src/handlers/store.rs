@@ -24,6 +24,7 @@ pub struct Shared {
     pub footer_pages: Vec<Page>,
     pub cart_count: i64,
     pub current_year: i64,
+    pub base_url: String,
 }
 
 impl Shared {
@@ -38,6 +39,7 @@ impl Shared {
             footer_pages: ctx.footer_pages,
             cart_count: ctx.cart_count,
             current_year: 2026,
+            base_url: ctx.base_url,
         }
     }
     // Template helpers
@@ -242,4 +244,60 @@ pub async fn not_found(State(state): State<AppState>, session: Session) -> Respo
     let mut resp = NotFoundTemplate { s }.page();
     *resp.status_mut() = axum::http::StatusCode::NOT_FOUND;
     resp
+}
+
+// ---------------------------------------------------------------------------
+// SEO: robots.txt and sitemap.xml
+// ---------------------------------------------------------------------------
+
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// GET /robots.txt — allow crawling, disallow admin/cart/checkout, point to sitemap.
+pub async fn robots_txt(State(state): State<AppState>) -> Response {
+    let base = state.base_url.trim_end_matches('/');
+    let body = format!(
+        "User-agent: *\n\
+         Allow: /\n\
+         Disallow: /admin\n\
+         Disallow: /cart\n\
+         Disallow: /checkout\n\
+         Disallow: /track\n\
+         Disallow: /setup\n\
+         Disallow: /order/\n\n\
+         Sitemap: {base}/sitemap.xml\n"
+    );
+    ([(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")], body).into_response()
+}
+
+/// GET /sitemap.xml — home, product list, active products, categories, published pages.
+pub async fn sitemap_xml(State(state): State<AppState>) -> Response {
+    let base = state.base_url.trim_end_matches('/').to_string();
+    let mut urls = String::new();
+    let mut add = |loc: String, priority: &str| {
+        urls.push_str(&format!(
+            "  <url><loc>{}</loc><changefreq>weekly</changefreq><priority>{}</priority></url>\n",
+            xml_escape(&loc), priority
+        ));
+    };
+    add(format!("{base}/"), "1.0");
+    add(format!("{base}/products"), "0.9");
+
+    let products = db::list_products(&state.db, &ProductFilter { limit: 5000, ..Default::default() }).unwrap_or_default();
+    for p in &products {
+        add(format!("{base}/product/{}", p.slug), "0.8");
+    }
+    for c in db::list_categories(&state.db).unwrap_or_default() {
+        add(format!("{base}/category/{}", c.slug), "0.7");
+    }
+    for pg in db::list_pages(&state.db, false).unwrap_or_default() {
+        add(format!("{base}/page/{}", pg.slug), "0.5");
+    }
+
+    let body = format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+         <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{urls}</urlset>\n"
+    );
+    ([(axum::http::header::CONTENT_TYPE, "application/xml; charset=utf-8")], body).into_response()
 }

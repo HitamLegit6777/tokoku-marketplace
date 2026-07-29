@@ -7,16 +7,38 @@
     <title>{% block title %}{{ s.store_name() }}{% endblock %} - {{ s.settings.tagline }}</title>
     <meta name="description" content="{% block description %}{{ s.settings.description }}{% endblock %}">
     {% if !s.settings.meta_keywords.is_empty() %}<meta name="keywords" content="{{ s.settings.meta_keywords }}">{% endif %}
-    <meta property="og:title" content="{{ s.store_name() }}">
-    <meta property="og:description" content="{{ s.settings.tagline }}">
-    <meta property="og:type" content="website">
-    {% if !s.settings.logo_url.is_empty() %}<meta property="og:image" content="{{ s.settings.logo_url }}">{% endif %}
+    <meta name="robots" content="{% block robots %}index, follow{% endblock %}">
+    <link rel="canonical" href="{{ s.base_url }}{% block canonical %}/{% endblock %}">
+    <meta property="og:site_name" content="{{ s.store_name() }}">
+    <meta property="og:title" content="{% block og_title %}{{ s.store_name() }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ s.settings.tagline }}{% endblock %}">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="{{ s.base_url }}{% block og_url %}/{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{% if !s.settings.logo_url.is_empty() %}{{ s.settings.logo_url }}{% else %}{{ s.base_url }}/static/img/favicon.svg{% endif %}{% endblock %}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block tw_title %}{{ s.store_name() }}{% endblock %}">
+    <meta name="twitter:description" content="{% block tw_description %}{{ s.settings.tagline }}{% endblock %}">
+    <meta name="twitter:image" content="{% block tw_image %}{% if !s.settings.logo_url.is_empty() %}{{ s.settings.logo_url }}{% else %}{{ s.base_url }}/static/img/favicon.svg{% endif %}{% endblock %}">
     {% if !s.settings.favicon_url.is_empty() %}<link rel="icon" href="{{ s.settings.favicon_url }}">{% else %}<link rel="icon" href="/static/img/favicon.svg">{% endif %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?{{ s.theme.google_fonts }}&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/store.css">
     <style>{{ s.theme_css|safe }}</style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Store",
+      "name": "{{ s.store_name() }}",
+      "description": "{% if !s.settings.description.is_empty() %}{{ s.settings.description }}{% else %}{{ s.settings.tagline }}{% endif %}",
+      "url": "{{ s.base_url }}/"{% if !s.settings.logo_url.is_empty() %},
+      "logo": "{{ s.settings.logo_url }}"{% endif %}{% if !s.settings.phone.is_empty() %},
+      "telephone": "{{ s.settings.phone }}"{% endif %}{% if !s.settings.email.is_empty() %},
+      "email": "{{ s.settings.email }}"{% endif %}{% if !s.settings.address.is_empty() %},
+      "address": {"@type": "PostalAddress", "streetAddress": "{{ s.settings.address }}", "addressCountry": "ID"}{% endif %}
+    }
+    </script>
+    {% block head_extra %}{% endblock %}
 </head>
 <body>
 {% if s.settings.announcement_on && !s.settings.announcement.is_empty() %}

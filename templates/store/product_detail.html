@@ -1,6 +1,35 @@
 {% extends "store/base.html" %}
 {% block title %}{{ product.name }}{% endblock %}
 {% block description %}{{ product.short_desc }}{% endblock %}
+{% block canonical %}/product/{{ product.slug }}{% endblock %}
+{% block og_url %}/product/{{ product.slug }}{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_title %}{{ product.name }}{% endblock %}
+{% block og_description %}{{ product.short_desc }}{% endblock %}
+{% block og_image %}{% if product.main_image().starts_with("http") %}{{ product.main_image() }}{% else %}{{ s.base_url }}{{ product.main_image() }}{% endif %}{% endblock %}
+{% block tw_title %}{{ product.name }}{% endblock %}
+{% block tw_description %}{{ product.short_desc }}{% endblock %}
+{% block tw_image %}{% if product.main_image().starts_with("http") %}{{ product.main_image() }}{% else %}{{ s.base_url }}{{ product.main_image() }}{% endif %}{% endblock %}
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "{{ product.name }}",
+  "description": "{% if !product.short_desc.is_empty() %}{{ product.short_desc }}{% else %}{{ product.name }}{% endif %}",
+  "image": "{% if product.main_image().starts_with("http") %}{{ product.main_image() }}{% else %}{{ s.base_url }}{{ product.main_image() }}{% endif %}",
+  "sku": "{{ product.sku }}",
+  "url": "{{ s.base_url }}/product/{{ product.slug }}",
+  "offers": {
+    "@type": "Offer",
+    "price": "{{ product.price }}",
+    "priceCurrency": "IDR",
+    "availability": "https://schema.org/{% if product.in_stock() %}InStock{% else %}OutOfStock{% endif %}",
+    "url": "{{ s.base_url }}/product/{{ product.slug }}"
+  }
+}
+</script>
+{% endblock %}
 {% block content %}
 <div class="container page-wrap">
     <nav class="breadcrumb">

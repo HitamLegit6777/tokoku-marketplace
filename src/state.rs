@@ -26,6 +26,8 @@ pub struct StoreContext {
     pub footer_pages: Vec<Page>,
     pub cart_count: i64,
     pub all_themes: &'static [Theme],
+    /// Absolute site origin (e.g. https://toko.example) for canonical/OG URLs.
+    pub base_url: String,
 }
 
 impl StoreContext {
@@ -43,6 +45,7 @@ impl StoreContext {
             footer_pages,
             cart_count,
             all_themes: themes::THEMES,
+            base_url: state.base_url.trim_end_matches('/').to_string(),
         }
     }
 
