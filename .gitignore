@@ -5,3 +5,6 @@
 data/*.db*
 static/uploads/*
 !static/uploads/.gitkeep
+
+# local helper scripts
+capture.sh
