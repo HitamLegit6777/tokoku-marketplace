@@ -1,0 +1,122 @@
+{% extends "store/base.html" %}
+{% block title %}Pesanan {{ order.order_number }}{% endblock %}
+{% block content %}
+<div class="container page-wrap narrow">
+    <div class="order-success">
+        <div class="success-icon">{{ "check-circle"|icon|safe }}</div>
+        <h1>Pesanan Berhasil Dibuat!</h1>
+        <p>Terima kasih, <strong>{{ order.customer_name }}</strong>. Pesanan kamu sudah kami terima.</p>
+        <div class="order-number-box">
+            <span>Nomor Pesanan</span>
+            <strong id="orderNum">{{ order.order_number }}</strong>
+            <button class="copy-btn" onclick="copyText('{{ order.order_number }}')" title="Salin">{{ "clipboard"|icon|safe }}</button>
+        </div>
+    </div>
+
+    <div class="order-status-bar">
+        <span class="badge badge-{{ order.payment_status }}">{{ order.payment_label() }}</span>
+        <span class="badge badge-status">{{ order.status_label() }}</span>
+    </div>
+
+    {% if !is_paid %}
+    <section class="pay-instruction">
+        <h2>Instruksi Pembayaran</h2>
+        <p class="pay-total">Total yang harus dibayar: <strong>{{ s.currency() }} {{ order.total|rupiah }}</strong></p>
+
+        {% if show_bank %}
+        <div class="pay-detail">
+            <h3>{{ "bank"|icon|safe }} Transfer Bank</h3>
+            <p>Silakan transfer ke rekening berikut:</p>
+            <div class="bank-card">
+                <div class="bank-row"><span>Bank</span><strong>{{ payment.bank_name }}</strong></div>
+                <div class="bank-row"><span>No. Rekening</span><strong class="copyable" onclick="copyText('{{ payment.bank_account_number }}')">{{ payment.bank_account_number }} {{ "clipboard"|icon|safe }}</strong></div>
+                <div class="bank-row"><span>Atas Nama</span><strong>{{ payment.bank_account_holder }}</strong></div>
+                <div class="bank-row highlight"><span>Jumlah</span><strong class="copyable" onclick="copyText('{{ order.total }}')">{{ s.currency() }} {{ order.total|rupiah }} {{ "clipboard"|icon|safe }}</strong></div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if show_qris %}
+        <div class="pay-detail">
+            <h3>{{ "qr"|icon|safe }} QRIS</h3>
+            {% if !payment.qris_image_url.is_empty() %}
+            <p>Scan kode QRIS di bawah ini dengan aplikasi e-wallet atau mobile banking:</p>
+            <div class="qris-box"><img src="{{ payment.qris_image_url }}" alt="QRIS"></div>
+            {% else %}
+            <p>Silakan hubungi penjual via WhatsApp untuk mendapatkan kode QRIS.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if show_ewallet %}
+        <div class="pay-detail">
+            <h3>{{ "card"|icon|safe }} E-Wallet</h3>
+            <div class="bank-card">
+                <div class="bank-row"><span>Jenis</span><strong>{{ payment.ewallet_name }}</strong></div>
+                <div class="bank-row"><span>Nomor</span><strong class="copyable" onclick="copyText('{{ payment.ewallet_number }}')">{{ payment.ewallet_number }} {{ "clipboard"|icon|safe }}</strong></div>
+                <div class="bank-row highlight"><span>Jumlah</span><strong>{{ s.currency() }} {{ order.total|rupiah }}</strong></div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if show_cod %}
+        <div class="pay-detail">
+            <h3>{{ "cash"|icon|safe }} Bayar di Tempat (COD)</h3>
+            <p>Siapkan uang tunai sebesar <strong>{{ s.currency() }} {{ order.total|rupiah }}</strong> saat barang tiba. Kurir akan menghubungi kamu.</p>
+        </div>
+        {% endif %}
+
+        {% if show_bank || show_qris || show_ewallet %}
+        <div class="pay-detail upload-proof">
+            <h3>{{ "clip"|icon|safe }} Upload Bukti Pembayaran</h3>
+            {% if !order.payment_proof.is_empty() %}
+            <div class="proof-uploaded">{{ "check"|icon|safe }} Bukti pembayaran sudah diupload. <a href="{{ order.payment_proof }}" target="_blank">Lihat</a></div>
+            {% endif %}
+            <form action="/order/{{ order.order_number }}/proof" method="post" enctype="multipart/form-data" class="proof-form">
+                <input type="file" name="proof" accept="image/*" required class="form-input">
+                <button type="submit" class="btn btn-primary">Upload Bukti</button>
+            </form>
+            <p class="muted">Setelah upload, admin akan memverifikasi dan memproses pesanan kamu.</p>
+        </div>
+        {% endif %}
+
+        <div class="confirm-wa">
+            <p>Sudah bayar? Konfirmasi langsung ke penjual:</p>
+            <a href="{{ wa_link }}" class="btn btn-wa btn-lg" target="_blank" rel="noopener">{{ "chat"|icon|safe }} Konfirmasi via WhatsApp</a>
+        </div>
+    </section>
+    {% else %}
+    <div class="paid-banner">{{ "check"|icon|safe }} Pembayaran sudah diterima. Pesanan kamu sedang diproses!</div>
+    {% endif %}
+
+    <section class="order-detail-card">
+        <h2>Detail Pesanan</h2>
+        <div class="od-items">
+            {% for item in order.items %}
+            <div class="od-item">
+                <img src="{{ item.product_image }}" alt="{{ item.product_name }}">
+                <div class="od-item-info"><strong>{{ item.product_name }}</strong><span>{{ item.quantity }} × {{ s.currency() }} {{ item.price|rupiah }}</span></div>
+                <span class="od-item-total">{{ s.currency() }} {{ item.subtotal|rupiah }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="od-summary">
+            <div class="summary-row"><span>Subtotal</span><span>{{ s.currency() }} {{ order.subtotal|rupiah }}</span></div>
+            <div class="summary-row"><span>Ongkir</span><span>{{ s.currency() }} {{ order.shipping_cost|rupiah }}</span></div>
+            {% if order.tax > 0 %}<div class="summary-row"><span>Pajak</span><span>{{ s.currency() }} {{ order.tax|rupiah }}</span></div>{% endif %}
+            {% if order.discount > 0 %}<div class="summary-row discount"><span>Diskon</span><span>- {{ s.currency() }} {{ order.discount|rupiah }}</span></div>{% endif %}
+            <div class="summary-total"><span>Total</span><span>{{ s.currency() }} {{ order.total|rupiah }}</span></div>
+        </div>
+        <div class="od-ship">
+            <h4>Dikirim ke:</h4>
+            <p><strong>{{ order.customer_name }}</strong> ({{ order.customer_phone }})<br>{{ order.shipping_address }}{% if !order.shipping_city.is_empty() %}, {{ order.shipping_city }}{% endif %}</p>
+            {% if !order.tracking_number.is_empty() %}<p class="tracking">No. Resi: <strong>{{ order.tracking_number }}</strong></p>{% endif %}
+        </div>
+    </section>
+
+    <div class="order-actions">
+        <a href="/track/result?order={{ order.order_number }}" class="btn btn-outline">Lacak Pesanan</a>
+        <a href="/products" class="btn btn-primary">Lanjut Belanja</a>
+    </div>
+</div>
+{% endblock %}

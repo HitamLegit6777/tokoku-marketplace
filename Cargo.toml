@@ -1,0 +1,55 @@
+[package]
+name = "tokoku"
+version = "1.0.0"
+edition = "2021"
+description = "TokoKu - Platform toko online siap pakai untuk UMKM Indonesia"
+authors = ["TokoKu"]
+license = "MIT"
+
+[profile.release]
+opt-level = "z"     # optimize for size
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[dependencies]
+# Web framework - lightweight & async
+axum = { version = "0.7", features = ["multipart", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "fs", "time"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace", "compression-gzip", "limit"] }
+
+# Templating - compile-time, zero runtime overhead
+askama = { version = "0.12", features = ["with-axum"] }
+askama_axum = "0.4"
+
+# Database - embedded SQLite, no server needed
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.24"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Sessions & auth
+tower-sessions = "0.12"
+argon2 = "0.5"
+rand = "0.8"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+slug = "0.1"
+dotenvy = "0.15"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+base64 = "0.22"
+sha2 = "0.10"
+hmac = "0.12"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+urlencoding = "2"

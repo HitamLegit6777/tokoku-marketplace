@@ -1,0 +1,101 @@
+{% extends "admin/base.html" %}
+{% block title %}{% if is_edit %}Edit Produk{% else %}Produk Baru{% endif %}{% endblock %}
+{% block heading %}{% if is_edit %}Edit Produk{% else %}Tambah Produk{% endif %}{% endblock %}
+{% block content %}
+<form action="/admin/products/save" method="post" class="form-card-layout">
+    {% if is_edit %}<input type="hidden" name="id" value="{{ product.id }}">{% endif %}
+    <div class="form-main">
+        <div class="card">
+            <h3>Informasi Produk</h3>
+            <div class="form-field">
+                <label>Nama Produk <span class="req">*</span></label>
+                <input type="text" name="name" class="form-input" required value="{{ product.name }}" placeholder="Contoh: Keripik Singkong Balado">
+            </div>
+            <div class="form-field">
+                <label>Deskripsi Singkat</label>
+                <input type="text" name="short_desc" class="form-input" value="{{ product.short_desc }}" placeholder="Satu kalimat menarik tentang produk">
+            </div>
+            <div class="form-field">
+                <label>Deskripsi Lengkap</label>
+                <textarea name="description" class="form-input" rows="6" placeholder="Jelaskan detail produk, bahan, keunggulan, dll">{{ product.description }}</textarea>
+            </div>
+            <div class="form-field">
+                <label>Tags (pisahkan dengan koma)</label>
+                <input type="text" name="tags" class="form-input" value="{{ product.tags }}" placeholder="pedas, keripik, camilan">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Gambar Produk</h3>
+            <div class="image-uploader">
+                <div class="image-list" id="imageList">
+                    {% for img in images %}
+                    <div class="image-thumb"><img src="{{ img }}" alt=""><button type="button" class="img-remove" onclick="removeImage(this)">&times;</button></div>
+                    {% endfor %}
+                </div>
+                <label class="image-drop" id="imageDrop">
+                    <input type="file" id="imageInput" accept="image/*" multiple hidden>
+                    <span class="id-icon">{{ "camera"|icon|safe }}</span>
+                    <span>Klik untuk upload gambar</span>
+                    <small class="muted">JPG/PNG, maks 8MB. Gambar pertama jadi utama.</small>
+                </label>
+                <textarea name="images" id="imagesField" class="form-input" rows="2" placeholder="URL gambar (satu per baris) - terisi otomatis saat upload">{% for img in images %}{{ img }}
+{% endfor %}</textarea>
+                <small class="muted">Kamu juga bisa menempel URL gambar langsung di sini.</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Harga &amp; Stok</h3>
+            <div class="form-grid-2">
+                <div class="form-field">
+                    <label>Harga Jual <span class="req">*</span></label>
+                    <input type="number" name="price" class="form-input" required value="{{ product.price }}" placeholder="0">
+                </div>
+                <div class="form-field">
+                    <label>Harga Coret (opsional)</label>
+                    <input type="number" name="compare_price" class="form-input" value="{{ product.compare_price }}" placeholder="Harga sebelum diskon">
+                </div>
+                <div class="form-field">
+                    <label>Harga Modal (opsional)</label>
+                    <input type="number" name="cost_price" class="form-input" value="{{ product.cost_price }}" placeholder="Untuk hitung profit">
+                </div>
+                <div class="form-field">
+                    <label>Berat (gram)</label>
+                    <input type="number" name="weight_grams" class="form-input" value="{{ product.weight_grams }}" placeholder="500">
+                </div>
+                <div class="form-field">
+                    <label>Stok</label>
+                    <input type="number" name="stock" class="form-input" value="{{ product.stock }}" placeholder="0">
+                </div>
+                <div class="form-field">
+                    <label>SKU (kode produk)</label>
+                    <input type="text" name="sku" class="form-input" value="{{ product.sku }}" placeholder="Opsional">
+                </div>
+            </div>
+            <label class="checkbox-row"><input type="checkbox" name="track_stock" {% if product.track_stock %}checked{% endif %}> <span>Lacak stok (kurangi otomatis saat terjual)</span></label>
+        </div>
+    </div>
+
+    <aside class="form-side">
+        <div class="card">
+            <h3>Publikasi</h3>
+            <label class="checkbox-row"><input type="checkbox" name="is_active" {% if product.is_active %}checked{% endif %}> <span>Aktif (tampil di toko)</span></label>
+            <label class="checkbox-row"><input type="checkbox" name="is_featured" {% if product.is_featured %}checked{% endif %}> <span>Produk unggulan</span></label>
+            <hr>
+            <div class="form-field">
+                <label>Kategori</label>
+                <select name="category_id" class="form-input">
+                    <option value="0">— Tanpa kategori —</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {% if product.is_category(c.id) %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">{% if is_edit %}Simpan Perubahan{% else %}Simpan Produk{% endif %}</button>
+            <a href="/admin/products" class="btn btn-ghost btn-block">Batal</a>
+        </div>
+    </aside>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/js/upload.js" defer></script>{% endblock %}

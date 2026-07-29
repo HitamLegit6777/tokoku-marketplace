@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block title %}Banner{% endblock %}
+{% block heading %}Banner Promosi{% endblock %}
+{% block content %}
+<div class="split-layout">
+    <div class="split-main">
+        {% if banners.is_empty() %}
+        <div class="empty-panel"><div class="empty-icon">{{ "image"|icon|safe }}</div><h3>Belum ada banner</h3><p>Tambahkan banner promosi untuk tampil di beranda.</p></div>
+        {% else %}
+        <div class="banner-admin-list">
+            {% for b in banners %}
+            <div class="banner-admin-item">
+                {% if !b.image_url.is_empty() %}<img src="{{ b.image_url }}" alt="{{ b.title }}">{% else %}<div class="banner-noimg">Tanpa gambar</div>{% endif %}
+                <div class="ba-info"><strong>{{ b.title }}</strong><small>{{ b.subtitle }}</small><span class="muted">{{ "arrow-right"|icon|safe }} {{ b.link_url }}</span></div>
+                <div class="row-actions">
+                    <button type="button" class="btn-sm btn-ghost" data-edit='{"id":{{ b.id }},"title":"{{ b.title|json_str|safe }}","subtitle":"{{ b.subtitle|json_str|safe }}","image_url":"{{ b.image_url|json_str|safe }}","link_url":"{{ b.link_url|json_str|safe }}","button_text":"{{ b.button_text|json_str|safe }}","sort_order":{{ b.sort_order }}}'>{{ "pencil"|icon|safe }} Edit</button>
+                    <form action="/admin/banners/{{ b.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Hapus banner?')"><button class="btn-sm btn-danger">Hapus</button></form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    <aside class="split-side">
+        <div class="card">
+            <h3 data-edit-title>Tambah Banner</h3>
+            <form action="/admin/banners" method="post" id="bannerForm" data-edit-form data-edit-title-text="Edit Banner" data-edit-label="Simpan Perubahan">
+                <input type="hidden" name="id" value="">
+                <div class="form-field"><label>Judul</label><input type="text" name="title" class="form-input" placeholder="Promo Spesial"></div>
+                <div class="form-field"><label>Subjudul</label><input type="text" name="subtitle" class="form-input" placeholder="Diskon hingga 50%"></div>
+                <div class="form-field"><label>URL Gambar</label><input type="text" name="image_url" id="bannerImg" class="form-input" placeholder="/static/uploads/..."><button type="button" class="btn btn-ghost btn-sm upload-trigger" data-target="bannerImg">{{ "camera"|icon|safe }} Upload</button></div>
+                <div class="form-field"><label>Link Tujuan</label><input type="text" name="link_url" class="form-input" placeholder="/products"></div>
+                <div class="form-field"><label>Teks Tombol</label><input type="text" name="button_text" class="form-input" placeholder="Belanja Sekarang"></div>
+                <div class="form-field"><label>Urutan</label><input type="number" name="sort_order" class="form-input" value="0"></div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-block">Tambah Banner</button>
+                    <button type="button" class="btn btn-ghost btn-block" data-edit-cancel hidden>Batal</button>
+                </div>
+            </form>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/upload.js" defer></script>{% endblock %}

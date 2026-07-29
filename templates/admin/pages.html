@@ -1,0 +1,31 @@
+{% extends "admin/base.html" %}
+{% block title %}Halaman{% endblock %}
+{% block heading %}Halaman Konten{% endblock %}
+{% block content %}
+<div class="page-actions"><span></span><a href="/admin/pages/new" class="btn btn-primary">+ Halaman Baru</a></div>
+{% if pages.is_empty() %}
+<div class="empty-panel"><div class="empty-icon">{{ "page"|icon|safe }}</div><h3>Belum ada halaman</h3><p>Buat halaman seperti "Tentang Kami", "FAQ", atau "Kebijakan".</p><a href="/admin/pages/new" class="btn btn-primary">+ Halaman Baru</a></div>
+{% else %}
+<div class="card table-wrap">
+    <table class="data-table">
+        <thead><tr><th>Judul</th><th>URL</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody>
+            {% for p in pages %}
+            <tr>
+                <td><strong>{{ p.title }}</strong></td>
+                <td class="muted">/page/{{ p.slug }}</td>
+                <td>{% if p.is_published %}<span class="badge badge-paid">Publik</span>{% else %}<span class="badge badge-pending">Draft</span>{% endif %}</td>
+                <td>
+                    <div class="row-actions">
+                        <a href="/page/{{ p.slug }}" target="_blank" class="btn-sm">Lihat</a>
+                        <a href="/admin/pages/{{ p.id }}/edit" class="btn-sm">Edit</a>
+                        <form action="/admin/pages/{{ p.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Hapus halaman?')"><button class="btn-sm btn-danger">Hapus</button></form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

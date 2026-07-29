@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block title %}Pembayaran{% endblock %}
+{% block heading %}Metode Pembayaran{% endblock %}
+{% block content %}
+<form action="/admin/payment" method="post" class="settings-form">
+    <div class="card">
+        <label class="toggle-card"><input type="checkbox" name="bank_transfer_enabled" {% if payment.bank_transfer_enabled %}checked{% endif %}><span class="tc-content"><strong>{{ "bank"|icon|safe }} Transfer Bank</strong><small>Terima pembayaran via transfer rekening bank</small></span></label>
+        <div class="form-grid-2">
+            <div class="form-field"><label>Nama Bank</label><input type="text" name="bank_name" class="form-input" value="{{ payment.bank_name }}" placeholder="BCA"></div>
+            <div class="form-field"><label>No. Rekening</label><input type="text" name="bank_account_number" class="form-input" value="{{ payment.bank_account_number }}"></div>
+        </div>
+        <div class="form-field"><label>Atas Nama</label><input type="text" name="bank_account_holder" class="form-input" value="{{ payment.bank_account_holder }}"></div>
+    </div>
+
+    <div class="card">
+        <label class="toggle-card"><input type="checkbox" name="qris_enabled" {% if payment.qris_enabled %}checked{% endif %}><span class="tc-content"><strong>{{ "qr"|icon|safe }} QRIS</strong><small>Pembayaran scan QRIS</small></span></label>
+        <div class="form-field"><label>URL Gambar QRIS</label><input type="text" name="qris_image_url" id="qrisUrl" class="form-input" value="{{ payment.qris_image_url }}" placeholder="Upload gambar QRIS statis"><button type="button" class="btn btn-ghost btn-sm upload-trigger" data-target="qrisUrl">{{ "camera"|icon|safe }} Upload</button></div>
+        {% if !payment.qris_image_url.is_empty() %}<img src="{{ payment.qris_image_url }}" alt="QRIS" class="qris-preview">{% endif %}
+    </div>
+
+    <div class="card">
+        <label class="toggle-card"><input type="checkbox" name="ewallet_enabled" {% if payment.ewallet_enabled %}checked{% endif %}><span class="tc-content"><strong>{{ "card"|icon|safe }} E-Wallet</strong><small>OVO / GoPay / Dana / ShopeePay</small></span></label>
+        <div class="form-grid-2">
+            <div class="form-field"><label>Jenis E-Wallet</label><input type="text" name="ewallet_name" class="form-input" value="{{ payment.ewallet_name }}" placeholder="GoPay"></div>
+            <div class="form-field"><label>Nomor</label><input type="text" name="ewallet_number" class="form-input" value="{{ payment.ewallet_number }}"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <label class="toggle-card"><input type="checkbox" name="cod_enabled" {% if payment.cod_enabled %}checked{% endif %}><span class="tc-content"><strong>{{ "cash"|icon|safe }} Bayar di Tempat (COD)</strong><small>Bayar tunai saat barang diterima</small></span></label>
+    </div>
+
+    <div class="card">
+        <label class="toggle-card"><input type="checkbox" name="midtrans_enabled" {% if payment.midtrans_enabled %}checked{% endif %}><span class="tc-content"><strong>{{ "globe"|icon|safe }} Midtrans (Pembayaran Online Otomatis)</strong><small>Kartu kredit, VA, e-wallet otomatis. Perlu akun Midtrans.</small></span></label>
+        <div class="form-field"><label>Server Key</label><input type="text" name="midtrans_server_key" class="form-input" value="{{ payment.midtrans_server_key }}" placeholder="SB-Mid-server-..."></div>
+        <div class="form-field"><label>Client Key</label><input type="text" name="midtrans_client_key" class="form-input" value="{{ payment.midtrans_client_key }}" placeholder="SB-Mid-client-..."></div>
+        <label class="checkbox-row"><input type="checkbox" name="midtrans_production" {% if payment.midtrans_production %}checked{% endif %}> <span>Mode Produksi (matikan untuk sandbox/testing)</span></label>
+        <p class="muted">Webhook URL: <code>[domain-toko]/webhook/midtrans</code> — set di dashboard Midtrans.</p>
+    </div>
+
+    <div class="sticky-save"><button type="submit" class="btn btn-primary btn-lg">Simpan Pembayaran</button></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/js/upload.js" defer></script>{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "store/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+    <nav class="breadcrumb"><a href="/">Beranda</a> <span>/</span> <span>{{ title }}</span></nav>
+    <div class="list-header">
+        <div>
+            <h1 class="page-title">{{ title }}</h1>
+            <p class="list-count">{{ total }} produk ditemukan</p>
+        </div>
+        <form class="sort-form" method="get">
+            {% if !search.is_empty() %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+            <label for="sort">Urutkan:</label>
+            <select name="sort" id="sort" onchange="this.form.submit()">
+                <option value="newest" {% if sort == "newest" %}selected{% endif %}>Terbaru</option>
+                <option value="popular" {% if sort == "popular" %}selected{% endif %}>Terlaris</option>
+                <option value="price_asc" {% if sort == "price_asc" %}selected{% endif %}>Harga Termurah</option>
+                <option value="price_desc" {% if sort == "price_desc" %}selected{% endif %}>Harga Termahal</option>
+                <option value="name" {% if sort == "name" %}selected{% endif %}>Nama A-Z</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="list-layout">
+        <aside class="list-sidebar">
+            <h3>Kategori</h3>
+            <ul class="filter-list">
+                <li><a href="/products" class="{% if active_category.is_empty() %}active{% endif %}">Semua Produk</a></li>
+                {% for c in categories %}
+                <li><a href="/category/{{ c.slug }}" class="{% if active_category == c.slug %}active{% endif %}">{{ c.name }} <span>{{ c.product_count }}</span></a></li>
+                {% endfor %}
+            </ul>
+        </aside>
+        <div class="list-main">
+            {% if products.is_empty() %}
+            <div class="empty-state">
+                <div class="empty-icon">{{ "search"|icon|safe }}</div>
+                <h3>Produk tidak ditemukan</h3>
+                <p>Coba kata kunci lain atau lihat semua produk kami.</p>
+                <a href="/products" class="btn btn-primary">Lihat Semua Produk</a>
+            </div>
+            {% else %}
+            <div class="product-grid">
+                {% for p in products %}{% include "partials/product_card.html" %}{% endfor %}
+            </div>
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}<a href="?sort={{ sort }}{% if !search.is_empty() %}&q={{ search }}{% endif %}&page={{ page - 1 }}" class="page-btn">&laquo; Sebelumnya</a>{% endif %}
+                <span class="page-info">Halaman {{ page }} dari {{ total_pages }}</span>
+                {% if page < total_pages %}<a href="?sort={{ sort }}{% if !search.is_empty() %}&q={{ search }}{% endif %}&page={{ page + 1 }}" class="page-btn">Berikutnya &raquo;</a>{% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

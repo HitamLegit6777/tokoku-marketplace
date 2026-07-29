@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} - {{ store_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="admin-body">
+<div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar">
+        <div class="as-brand">
+            <span class="as-logo">{{ "bag"|icon|safe }}</span>
+            <span class="as-name">{{ store_name|truncate_chars(18) }}</span>
+        </div>
+        <nav class="as-nav">
+            <a href="/admin" class="{% if active == "dashboard" %}active{% endif %}"><span class="ni">{{ "chart"|icon|safe }}</span> Dashboard</a>
+            <div class="as-group">Katalog</div>
+            <a href="/admin/products" class="{% if active == "products" %}active{% endif %}"><span class="ni">{{ "box"|icon|safe }}</span> Produk</a>
+            <a href="/admin/categories" class="{% if active == "categories" %}active{% endif %}"><span class="ni">{{ "tag"|icon|safe }}</span> Kategori</a>
+            <a href="/admin/banners" class="{% if active == "banners" %}active{% endif %}"><span class="ni">{{ "image"|icon|safe }}</span> Banner</a>
+            <a href="/admin/coupons" class="{% if active == "coupons" %}active{% endif %}"><span class="ni">{{ "ticket"|icon|safe }}</span> Kupon</a>
+            <div class="as-group">Penjualan</div>
+            <a href="/admin/orders" class="{% if active == "orders" %}active{% endif %}"><span class="ni">{{ "receipt"|icon|safe }}</span> Pesanan</a>
+            <a href="/admin/finance" class="{% if active == "finance" %}active{% endif %}"><span class="ni">{{ "wallet"|icon|safe }}</span> Laporan Keuangan</a>
+            <div class="as-group">Toko</div>
+            <a href="/admin/appearance" class="{% if active == "appearance" %}active{% endif %}"><span class="ni">{{ "palette"|icon|safe }}</span> Tampilan &amp; Tema</a>
+            <a href="/admin/pages" class="{% if active == "pages" %}active{% endif %}"><span class="ni">{{ "page"|icon|safe }}</span> Halaman</a>
+            <a href="/admin/payment" class="{% if active == "payment" %}active{% endif %}"><span class="ni">{{ "card"|icon|safe }}</span> Pembayaran</a>
+            <a href="/admin/settings" class="{% if active == "settings" %}active{% endif %}"><span class="ni">{{ "settings"|icon|safe }}</span> Pengaturan</a>
+        </nav>
+        <div class="as-footer">
+            <a href="/" target="_blank" class="as-view">{{ "external"|icon|safe }} Lihat Toko</a>
+            <a href="/admin/logout" class="as-logout">Keluar</a>
+        </div>
+    </aside>
+    <div class="admin-backdrop" id="adminBackdrop"></div>
+
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <button class="admin-menu-btn" id="adminMenuBtn" aria-label="Menu">{{ "menu"|icon|safe }}</button>
+            <h1 class="topbar-title">{% block heading %}{% endblock %}</h1>
+            <div class="topbar-user">
+                <span class="tu-avatar">{{ user|truncate_chars(1) }}</span>
+                <span class="tu-name">{{ user }}</span>
+            </div>
+        </header>
+        <div class="admin-content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</div>
+<script src="/static/js/admin.js" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

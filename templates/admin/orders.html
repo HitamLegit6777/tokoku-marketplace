@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}Pesanan{% endblock %}
+{% block heading %}Pesanan{% endblock %}
+{% block content %}
+<div class="order-tabs">
+    <a href="/admin/orders?status=all" class="ot {% if filter == "all" %}active{% endif %}">Semua <span>{{ counts.all }}</span></a>
+    <a href="/admin/orders?status=new" class="ot {% if filter == "new" %}active{% endif %}">Baru <span>{{ counts.new }}</span></a>
+    <a href="/admin/orders?status=processing" class="ot {% if filter == "processing" %}active{% endif %}">Diproses <span>{{ counts.processing }}</span></a>
+    <a href="/admin/orders?status=shipped" class="ot {% if filter == "shipped" %}active{% endif %}">Dikirim <span>{{ counts.shipped }}</span></a>
+    <a href="/admin/orders?status=completed" class="ot {% if filter == "completed" %}active{% endif %}">Selesai <span>{{ counts.completed }}</span></a>
+    <a href="/admin/orders?status=cancelled" class="ot {% if filter == "cancelled" %}active{% endif %}">Batal <span>{{ counts.cancelled }}</span></a>
+</div>
+
+{% if orders.is_empty() %}
+<div class="empty-panel"><div class="empty-icon">{{ "receipt"|icon|safe }}</div><h3>Belum ada pesanan</h3><p>Pesanan yang masuk akan muncul di sini.</p></div>
+{% else %}
+<div class="card table-wrap">
+    <table class="data-table">
+        <thead><tr><th>No. Pesanan</th><th>Pelanggan</th><th>Total</th><th>Bayar</th><th>Status</th><th>Tanggal</th><th></th></tr></thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td><strong>{{ o.order_number }}</strong><br><small class="muted">{{ o.payment_method }}</small></td>
+                <td>{{ o.customer_name }}<br><small class="muted">{{ o.customer_phone }}</small></td>
+                <td>{{ currency }} {{ o.total|rupiah }}</td>
+                <td><span class="badge badge-{{ o.payment_status }}">{{ o.payment_label() }}</span></td>
+                <td><span class="badge badge-{{ o.order_status }}">{{ o.status_label() }}</span></td>
+                <td class="muted">{{ o.created_at|datetime }}</td>
+                <td><a href="/admin/orders/{{ o.id }}" class="btn-sm btn-primary">Kelola</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block content %}
+<div class="stat-grid">
+    <div class="stat-card stat-primary">
+        <div class="stat-icon">{{ "money"|icon|safe }}</div>
+        <div class="stat-info"><span class="stat-label">Total Pendapatan</span><strong class="stat-value">{{ currency }} {{ stats.total_revenue|rupiah }}</strong><span class="stat-sub">Hari ini: {{ currency }} {{ stats.revenue_today|rupiah }}</span></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">{{ "receipt"|icon|safe }}</div>
+        <div class="stat-info"><span class="stat-label">Total Pesanan</span><strong class="stat-value">{{ stats.total_orders }}</strong><span class="stat-sub">{{ stats.new_orders }} pesanan baru</span></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">{{ "box"|icon|safe }}</div>
+        <div class="stat-info"><span class="stat-label">Produk Aktif</span><strong class="stat-value">{{ stats.active_products }}</strong><span class="stat-sub">dari {{ stats.total_products }} total</span></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">{{ "users"|icon|safe }}</div>
+        <div class="stat-info"><span class="stat-label">Pelanggan</span><strong class="stat-value">{{ stats.total_customers }}</strong><span class="stat-sub">{{ stats.pending_payments }} menunggu bayar</span></div>
+    </div>
+</div>
+
+{% if stats.low_stock > 0 %}
+<div class="alert alert-warn">{{ "warning"|icon|safe }} {{ stats.low_stock }} produk memiliki stok menipis (≤5). <a href="/admin/products">Cek produk</a></div>
+{% endif %}
+
+<div class="dash-grid">
+    <div class="dash-card">
+        <div class="dash-card-head"><h3>Penjualan 7 Hari Terakhir</h3></div>
+        {% if stats.sales_last_7_days.is_empty() %}
+        <p class="muted center">Belum ada data penjualan.</p>
+        {% else %}
+        <div class="mini-chart">
+            {% for (day, amount) in stats.sales_last_7_days %}
+            <div class="chart-bar-wrap">
+                <div class="chart-bar" style="height:{{ amount * 100 / max_sales }}%" title="{{ currency }} {{ amount|rupiah }}"></div>
+                <span class="chart-label">{{ day|truncate_chars(5) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="dash-card">
+        <div class="dash-card-head"><h3>Produk Terlaris</h3><a href="/admin/products" class="dash-link">Semua</a></div>
+        {% if stats.top_products.is_empty() %}
+        <p class="muted center">Belum ada penjualan.</p>
+        {% else %}
+        <div class="top-list">
+            {% for p in stats.top_products %}
+            <div class="top-item">
+                <img src="{{ p.main_image() }}" alt="{{ p.name }}">
+                <div class="top-info"><strong>{{ p.name|truncate_chars(30) }}</strong><span>{{ p.sold }} terjual</span></div>
+                <span class="top-price">{{ currency }} {{ p.price|rupiah }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="dash-card">
+    <div class="dash-card-head"><h3>Pesanan Terbaru</h3><a href="/admin/orders" class="dash-link">Lihat semua</a></div>
+    {% if stats.recent_orders.is_empty() %}
+    <p class="muted center">Belum ada pesanan.</p>
+    {% else %}
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>No. Pesanan</th><th>Pelanggan</th><th>Total</th><th>Status</th><th>Tanggal</th><th></th></tr></thead>
+            <tbody>
+                {% for o in stats.recent_orders %}
+                <tr>
+                    <td><strong>{{ o.order_number }}</strong></td>
+                    <td>{{ o.customer_name }}</td>
+                    <td>{{ currency }} {{ o.total|rupiah }}</td>
+                    <td><span class="badge badge-{{ o.order_status }}">{{ o.status_label() }}</span></td>
+                    <td class="muted">{{ o.created_at|datetime }}</td>
+                    <td><a href="/admin/orders/{{ o.id }}" class="btn-sm">Detail</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+{% block title %}Kategori{% endblock %}
+{% block heading %}Kategori{% endblock %}
+{% block content %}
+<div class="split-layout">
+    <div class="split-main">
+        {% if categories.is_empty() %}
+        <div class="empty-panel"><div class="empty-icon">{{ "tag"|icon|safe }}</div><h3>Belum ada kategori</h3><p>Tambahkan kategori untuk mengelompokkan produk.</p></div>
+        {% else %}
+        <div class="card table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Kategori</th><th>Slug</th><th>Produk</th><th>Aksi</th></tr></thead>
+                <tbody>
+                    {% for c in categories %}
+                    <tr>
+                        <td><strong>{{ c.name }}</strong>{% if !c.description.is_empty() %}<br><small class="muted">{{ c.description|truncate_chars(50) }}</small>{% endif %}</td>
+                        <td class="muted">{{ c.slug }}</td>
+                        <td>{{ c.product_count }}</td>
+                        <td class="row-actions">
+                            <button type="button" class="btn-sm btn-ghost" data-edit='{"id":{{ c.id }},"name":"{{ c.name|json_str|safe }}","description":"{{ c.description|json_str|safe }}","icon":"{{ c.icon|json_str|safe }}","image_url":"{{ c.image_url|json_str|safe }}"}'>{{ "pencil"|icon|safe }} Edit</button>
+                            <form action="/admin/categories/{{ c.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Hapus kategori ini? Produk tidak ikut terhapus.')">
+                                <button type="submit" class="btn-sm btn-danger">Hapus</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    <aside class="split-side">
+        <div class="card">
+            <h3 data-edit-title>Tambah Kategori</h3>
+            <form action="/admin/categories" method="post" data-edit-form data-edit-title-text="Edit Kategori" data-edit-label="Simpan Perubahan">
+                <input type="hidden" name="id" value="">
+                <div class="form-field"><label>Nama Kategori <span class="req">*</span></label><input type="text" name="name" class="form-input" required placeholder="Contoh: Minuman"></div>
+                <div class="form-field"><label>Deskripsi</label><input type="text" name="description" class="form-input" placeholder="Opsional"></div>
+                <div class="form-field"><label>Ikon</label><input type="text" name="icon" class="form-input" placeholder="coffee / cookie / cup / gift"></div>
+                <input type="hidden" name="image_url" value="">
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-block">Tambah Kategori</button>
+                    <button type="button" class="btn btn-ghost btn-block" data-edit-cancel hidden>Batal</button>
+                </div>
+            </form>
+        </div>
+    </aside>
+</div>
+{% endblock %}

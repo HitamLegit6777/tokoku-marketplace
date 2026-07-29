@@ -1,0 +1,64 @@
+{% extends "store/base.html" %}
+{% block title %}Lacak Pesanan{% endblock %}
+{% block content %}
+<div class="container page-wrap narrow">
+    <nav class="breadcrumb"><a href="/">Beranda</a> <span>/</span> <span>Lacak Pesanan</span></nav>
+    <div class="track-hero">
+        <div class="track-icon">{{ "truck"|icon|safe }}</div>
+        <h1 class="page-title">Lacak Pesanan Kamu</h1>
+        <p>Masukkan nomor pesanan untuk melihat status terkini.</p>
+    </div>
+
+    <form action="/track/result" method="get" class="track-form">
+        <input type="text" name="order" class="form-input" placeholder="Contoh: INV-20260729-A1B2" value="{{ query }}" required>
+        <button type="submit" class="btn btn-primary btn-lg">Lacak</button>
+    </form>
+
+    {% if searched %}
+        {% match order %}
+        {% when Some with (o) %}
+        <div class="track-result">
+            <div class="tr-head">
+                <div>
+                    <span class="muted">Nomor Pesanan</span>
+                    <h2>{{ o.order_number }}</h2>
+                </div>
+                <span class="badge badge-{{ o.payment_status }}">{{ o.payment_label() }}</span>
+            </div>
+
+            <div class="track-timeline">
+                <div class="tl-step {% if o.order_status == "new" || o.order_status == "processing" || o.order_status == "shipped" || o.order_status == "completed" %}done{% endif %}">
+                    <span class="tl-dot"></span><div><strong>Pesanan Dibuat</strong><small>{{ o.created_at|datetime }}</small></div>
+                </div>
+                <div class="tl-step {% if o.order_status == "processing" || o.order_status == "shipped" || o.order_status == "completed" %}done{% endif %}">
+                    <span class="tl-dot"></span><div><strong>Diproses</strong><small>Pesanan sedang disiapkan</small></div>
+                </div>
+                <div class="tl-step {% if o.order_status == "shipped" || o.order_status == "completed" %}done{% endif %}">
+                    <span class="tl-dot"></span><div><strong>Dikirim</strong><small>{% if !o.tracking_number.is_empty() %}Resi: {{ o.tracking_number }}{% else %}Dalam perjalanan{% endif %}</small></div>
+                </div>
+                <div class="tl-step {% if o.order_status == "completed" %}done{% endif %}">
+                    <span class="tl-dot"></span><div><strong>Selesai</strong><small>Pesanan diterima</small></div>
+                </div>
+                {% if o.order_status == "cancelled" %}
+                <div class="tl-step cancelled done"><span class="tl-dot"></span><div><strong>Dibatalkan</strong><small>Pesanan dibatalkan</small></div></div>
+                {% endif %}
+            </div>
+
+            <div class="tr-items">
+                {% for item in o.items %}
+                <div class="tr-item"><img src="{{ item.product_image }}" alt="{{ item.product_name }}"><span>{{ item.product_name }} × {{ item.quantity }}</span><strong>{{ s.currency() }} {{ item.subtotal|rupiah }}</strong></div>
+                {% endfor %}
+            </div>
+            <div class="summary-total"><span>Total</span><span>{{ s.currency() }} {{ o.total|rupiah }}</span></div>
+            <a href="/order/{{ o.order_number }}" class="btn btn-outline btn-block">Lihat Detail &amp; Pembayaran</a>
+        </div>
+        {% when None %}
+        <div class="empty-state">
+            <div class="empty-icon">{{ "help"|icon|safe }}</div>
+            <h3>Pesanan tidak ditemukan</h3>
+            <p>Pastikan nomor pesanan yang kamu masukkan benar.</p>
+        </div>
+        {% endmatch %}
+    {% endif %}
+</div>
+{% endblock %}

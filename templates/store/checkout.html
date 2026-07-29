@@ -1,0 +1,89 @@
+{% extends "store/base.html" %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+    <nav class="breadcrumb"><a href="/">Beranda</a> <span>/</span> <a href="/cart">Keranjang</a> <span>/</span> <span>Checkout</span></nav>
+    <h1 class="page-title">Checkout</h1>
+
+    <form action="/checkout" method="post" class="checkout-layout" id="checkoutForm">
+        <div class="checkout-main">
+            <section class="checkout-card">
+                <h3><span class="step-num">1</span> Informasi Pengiriman</h3>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Nama Lengkap <span class="req">*</span></label>
+                        <input type="text" name="customer_name" class="form-input" required placeholder="Nama penerima">
+                    </div>
+                    <div class="form-field">
+                        <label>Nomor WhatsApp <span class="req">*</span></label>
+                        <input type="tel" name="customer_phone" class="form-input" required placeholder="08xxxxxxxxxx">
+                    </div>
+                    <div class="form-field full">
+                        <label>Email (opsional)</label>
+                        <input type="email" name="customer_email" class="form-input" placeholder="email@contoh.com">
+                    </div>
+                    <div class="form-field full">
+                        <label>Alamat Lengkap <span class="req">*</span></label>
+                        <textarea name="shipping_address" class="form-input" rows="3" required placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>Kota / Kabupaten</label>
+                        <input type="text" name="shipping_city" class="form-input" placeholder="Kota">
+                    </div>
+                    <div class="form-field">
+                        <label>Catatan (opsional)</label>
+                        <input type="text" name="shipping_note" class="form-input" placeholder="Warna, ukuran, dll">
+                    </div>
+                </div>
+            </section>
+
+            <section class="checkout-card">
+                <h3><span class="step-num">2</span> Metode Pembayaran</h3>
+                {% if methods.is_empty() %}
+                <p class="muted">Belum ada metode pembayaran yang aktif. Silakan hubungi penjual via WhatsApp.</p>
+                {% else %}
+                <div class="payment-methods">
+                    {% for m in methods %}
+                    <label class="pay-method">
+                        <input type="radio" name="payment_method" value="{{ m.id }}" {% if loop.first %}checked{% endif %}>
+                        <span class="pm-content">
+                            <span class="pm-icon">{% if m.icon == "bank" %}{{ "bank"|icon|safe }}{% else if m.icon == "qr" %}{{ "qr"|icon|safe }}{% else if m.icon == "wallet" %}{{ "card"|icon|safe }}{% else if m.icon == "cash" %}{{ "cash"|icon|safe }}{% else %}{{ "globe"|icon|safe }}{% endif %}</span>
+                            <span class="pm-text"><strong>{{ m.label }}</strong><small>{{ m.description }}</small></span>
+                            <span class="pm-check"></span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </section>
+
+            <section class="checkout-card">
+                <h3><span class="step-num">3</span> Kode Promo</h3>
+                <div class="coupon-field">
+                    <input type="text" name="coupon_code" class="form-input" placeholder="Masukkan kode promo (opsional)">
+                    <small class="muted">Diskon akan diterapkan otomatis jika kode valid.</small>
+                </div>
+            </section>
+        </div>
+
+        <aside class="checkout-summary">
+            <h3>Pesanan Kamu</h3>
+            <div class="co-items">
+                {% for item in items %}
+                <div class="co-item">
+                    <div class="co-item-img"><img src="{{ item.image }}" alt="{{ item.name }}"><span class="co-qty">{{ item.quantity }}</span></div>
+                    <span class="co-item-name">{{ item.name|truncate_chars(40) }}</span>
+                    <span class="co-item-price">{{ s.currency() }} {{ item.subtotal()|rupiah }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="summary-row"><span>Subtotal</span><span>{{ s.currency() }} {{ subtotal|rupiah }}</span></div>
+            <div class="summary-row"><span>Ongkir</span><span>{% if free_shipping %}<span class="free-tag">GRATIS</span>{% else %}{{ s.currency() }} {{ shipping|rupiah }}{% endif %}</span></div>
+            {% if tax > 0 %}<div class="summary-row"><span>Pajak</span><span>{{ s.currency() }} {{ tax|rupiah }}</span></div>{% endif %}
+            <div class="summary-total"><span>Total</span><span>{{ s.currency() }} {{ total|rupiah }}</span></div>
+            <button type="submit" class="btn btn-primary btn-lg btn-block">Buat Pesanan</button>
+            <div class="summary-note">Dengan memesan, kamu menyetujui syarat &amp; ketentuan toko.</div>
+        </aside>
+    </form>
+</div>
+{% endblock %}

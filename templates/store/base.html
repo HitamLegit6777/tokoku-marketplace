@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="{{ s.theme.primary }}">
+    <title>{% block title %}{{ s.store_name() }}{% endblock %} - {{ s.settings.tagline }}</title>
+    <meta name="description" content="{% block description %}{{ s.settings.description }}{% endblock %}">
+    {% if !s.settings.meta_keywords.is_empty() %}<meta name="keywords" content="{{ s.settings.meta_keywords }}">{% endif %}
+    <meta property="og:title" content="{{ s.store_name() }}">
+    <meta property="og:description" content="{{ s.settings.tagline }}">
+    <meta property="og:type" content="website">
+    {% if !s.settings.logo_url.is_empty() %}<meta property="og:image" content="{{ s.settings.logo_url }}">{% endif %}
+    {% if !s.settings.favicon_url.is_empty() %}<link rel="icon" href="{{ s.settings.favicon_url }}">{% else %}<link rel="icon" href="/static/img/favicon.svg">{% endif %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?{{ s.theme.google_fonts }}&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/store.css">
+    <style>{{ s.theme_css|safe }}</style>
+</head>
+<body>
+{% if s.settings.announcement_on && !s.settings.announcement.is_empty() %}
+<div class="announcement-bar">
+    <div class="marquee"><span>{{ s.settings.announcement }}</span><span aria-hidden="true">{{ s.settings.announcement }}</span></div>
+</div>
+{% endif %}
+
+<header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+        <button class="menu-toggle" id="menuToggle" aria-label="Menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <a href="/" class="brand">
+            {% if !s.settings.logo_url.is_empty() %}
+            <img src="{{ s.settings.logo_url }}" alt="{{ s.store_name() }}" class="brand-logo">
+            {% else %}
+            <span class="brand-mark">{{ s.store_name()|truncate_chars(1) }}</span>
+            {% endif %}
+            <span class="brand-name">{{ s.store_name() }}</span>
+        </a>
+        <form class="search-bar" action="/search" method="get" role="search">
+            <input type="search" name="q" placeholder="Cari produk..." aria-label="Cari produk" autocomplete="off">
+            <button type="submit" aria-label="Cari">
+                <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+        </form>
+        <div class="header-actions">
+            <a href="/track" class="header-icon" aria-label="Lacak pesanan" title="Lacak Pesanan">
+                <svg viewBox="0 0 24 24" width="24" height="24"><path d="M9 17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2m0 0h3l3 4v3a1 1 0 0 1-1 1h-2M9 17a2 2 0 1 0 4 0m-4 0a2 2 0 1 1 4 0m6 0a2 2 0 1 0 2 0" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a href="/cart" class="header-icon cart-link" aria-label="Keranjang">
+                <svg viewBox="0 0 24 24" width="24" height="24"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M6 6 5 3H2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/></svg>
+                {% if s.cart_count > 0 %}<span class="cart-badge" id="cartBadge">{{ s.cart_count }}</span>{% else %}<span class="cart-badge" id="cartBadge" style="display:none">0</span>{% endif %}
+            </a>
+        </div>
+    </div>
+    <nav class="category-nav">
+        <div class="container cat-scroll">
+            <a href="/products" class="cat-pill">Semua</a>
+            {% for c in s.nav_categories %}
+            <a href="/category/{{ c.slug }}" class="cat-pill">{{ c.name }}</a>
+            {% endfor %}
+        </div>
+    </nav>
+</header>
+
+<div class="mobile-drawer" id="mobileDrawer">
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="drawer-panel">
+        <div class="drawer-head">
+            <span class="brand-name">{{ s.store_name() }}</span>
+            <button class="drawer-close" id="drawerClose" aria-label="Tutup">&times;</button>
+        </div>
+        <nav class="drawer-nav">
+            <a href="/">Beranda</a>
+            <a href="/products">Semua Produk</a>
+            {% for c in s.nav_categories %}<a href="/category/{{ c.slug }}">{{ c.name }}</a>{% endfor %}
+            <a href="/track">Lacak Pesanan</a>
+            {% for p in s.footer_pages %}<a href="/page/{{ p.slug }}">{{ p.title }}</a>{% endfor %}
+        </nav>
+    </aside>
+</div>
+
+<main class="site-main">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-grid">
+        <div class="footer-col footer-about">
+            <div class="brand">
+                {% if !s.settings.logo_url.is_empty() %}<img src="{{ s.settings.logo_url }}" alt="{{ s.store_name() }}" class="brand-logo">{% else %}<span class="brand-mark">{{ s.store_name()|truncate_chars(1) }}</span>{% endif %}
+                <span class="brand-name">{{ s.store_name() }}</span>
+            </div>
+            <p class="footer-desc">{{ s.settings.description }}</p>
+            <div class="social-links">
+                {% if !s.settings.instagram.is_empty() %}<a href="https://instagram.com/{{ s.settings.instagram }}" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" stroke-width="1.6" fill="none"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6" fill="none"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>{% endif %}
+                {% if !s.settings.facebook.is_empty() %}<a href="{{ s.settings.facebook }}" target="_blank" rel="noopener" aria-label="Facebook"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M14 9V7c0-1 .5-2 2-2h2V2h-3c-2.5 0-4 1.8-4 4v3H8v3h3v8h3v-8h2.5l.5-3z" fill="currentColor"/></svg></a>{% endif %}
+                {% if !s.settings.tiktok.is_empty() %}<a href="{{ s.settings.tiktok }}" target="_blank" rel="noopener" aria-label="TikTok"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M16 3c.5 2.5 2 4 4.5 4.3v3C18.8 10.2 17 9.6 16 8.8V15a5.5 5.5 0 1 1-5.5-5.5c.3 0 .7 0 1 .1v3.1a2.5 2.5 0 1 0 1.5 2.3V3z" fill="currentColor"/></svg></a>{% endif %}
+                {% if !s.wa().is_empty() %}<a href="https://wa.me/{{ s.wa() }}" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8.5 8c.3 0 .6.5 1 1.3.2.4.1.6-.1.9-.3.3-.4.5-.2.9.5 1 1.4 1.7 2.4 2 .3.1.6.1.8-.2.3-.4.6-.6 1-.4.7.3 1.3.7 1.3 1 0 1-1 1.5-1.8 1.5-2.3 0-5.5-3.2-5.5-5.5C7.7 8.9 8 8 8.5 8z" fill="currentColor"/></svg></a>{% endif %}
+            </div>
+        </div>
+        <div class="footer-col">
+            <h4>Belanja</h4>
+            <a href="/products">Semua Produk</a>
+            {% for c in s.nav_categories %}<a href="/category/{{ c.slug }}">{{ c.name }}</a>{% endfor %}
+        </div>
+        <div class="footer-col">
+            <h4>Bantuan</h4>
+            <a href="/track">Lacak Pesanan</a>
+            {% for p in s.footer_pages %}<a href="/page/{{ p.slug }}">{{ p.title }}</a>{% endfor %}
+        </div>
+        <div class="footer-col">
+            <h4>Kontak</h4>
+            {% if !s.settings.phone.is_empty() %}<a href="tel:{{ s.settings.phone }}">{{ s.settings.phone }}</a>{% endif %}
+            {% if !s.settings.email.is_empty() %}<a href="mailto:{{ s.settings.email }}">{{ s.settings.email }}</a>{% endif %}
+            {% if !s.settings.address.is_empty() %}<p class="footer-addr">{{ s.settings.address }}</p>{% endif %}
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <div class="container">
+            <p>&copy; {{ s.current_year }} {{ s.store_name() }}. Dibuat dengan TokoKu.</p>
+        </div>
+    </div>
+</footer>
+
+{% if !s.wa().is_empty() %}
+<a href="https://wa.me/{{ s.wa() }}" class="wa-float" target="_blank" rel="noopener" aria-label="Chat WhatsApp">
+    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.3A10 10 0 1 0 12 2z" fill="#fff"/><path d="M8.4 7.3c.3 0 .7.6 1.1 1.5.2.5.1.7-.2 1-.3.4-.5.6-.2 1 .6 1.2 1.6 2 2.7 2.4.4.1.7.1 1-.3.3-.4.6-.7 1.1-.5.8.4 1.5.8 1.5 1.2 0 1.1-1.2 1.7-2 1.7-2.7 0-6.2-3.6-6.2-6.2 0-.9.4-1.9.9-1.9z" fill="var(--success)"/></svg>
+</a>
+{% endif %}
+
+<nav class="bottom-nav">
+    <a href="/" class="bn-item">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 11l9-8 9 8M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>
+        <span>Beranda</span>
+    </a>
+    <a href="/products" class="bn-item">
+        <svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6" fill="none"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6" fill="none"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6" fill="none"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+        <span>Produk</span>
+    </a>
+    <a href="/cart" class="bn-item bn-cart">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 6h15l-1.5 9h-12z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M6 6 5 3H2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/></svg>
+        {% if s.cart_count > 0 %}<span class="bn-badge">{{ s.cart_count }}</span>{% endif %}
+        <span>Keranjang</span>
+    </a>
+    <a href="/track" class="bn-item">
+        <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>Lacak</span>
+    </a>
+</nav>
+
+<script src="/static/js/store.js" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

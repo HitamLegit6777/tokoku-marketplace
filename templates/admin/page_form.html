@@ -1,0 +1,11 @@
+{% extends "admin/base.html" %}
+{% block title %}{% if is_edit %}Edit Halaman{% else %}Halaman Baru{% endif %}{% endblock %}
+{% block heading %}{% if is_edit %}Edit Halaman{% else %}Halaman Baru{% endif %}{% endblock %}
+{% block content %}
+<form action="/admin/pages/save" method="post" class="card narrow-form">
+    {% if is_edit %}<input type="hidden" name="id" value="{{ page.id }}">{% endif %}
+    <div class="form-field"><label>Judul Halaman <span class="req">*</span></label><input type="text" name="title" class="form-input" required value="{{ page.title }}" placeholder="Contoh: Tentang Kami"></div>
+    <div class="form-field"><label>Konten</label><textarea name="content" class="form-input" rows="14" placeholder="Tulis konten halaman di sini. Baris kosong akan menjadi paragraf baru.">{{ page.content }}</textarea></div>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">{% if is_edit %}Simpan{% else %}Buat Halaman{% endif %}</button><a href="/admin/pages" class="btn btn-ghost">Batal</a></div>
+</form>
+{% endblock %}

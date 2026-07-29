@@ -1,0 +1,142 @@
+{% extends "store/base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block description %}{{ product.short_desc }}{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+    <nav class="breadcrumb">
+        <a href="/">Beranda</a> <span>/</span>
+        {% if !product.category_name.is_empty() %}<a href="/products">Produk</a> <span>/</span>{% endif %}
+        <span>{{ product.name }}</span>
+    </nav>
+
+    <div class="pd-layout">
+        <div class="pd-gallery">
+            <div class="pd-main-img">
+                <img id="pdMainImg" src="{{ product.main_image() }}" alt="{{ product.name }}">
+                {% if product.has_discount() %}<span class="pc-badge pc-discount">-{{ product.discount_percent() }}%</span>{% endif %}
+            </div>
+            {% if images.len() > 1 %}
+            <div class="pd-thumbs">
+                {% for img in images %}
+                <button class="pd-thumb {% if loop.first %}active{% endif %}" onclick="setMainImage('{{ img }}', this)"><img src="{{ img }}" alt="{{ product.name }} {{ loop.index }}"></button>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="pd-info">
+            {% if !product.category_name.is_empty() %}<a href="/products" class="pd-cat">{{ product.category_name }}</a>{% endif %}
+            <h1 class="pd-name">{{ product.name }}</h1>
+            <div class="pd-meta">
+                {% if review_count > 0 %}
+                <span class="pd-rating"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2l2.9 6.3 6.6.6-5 4.4 1.5 6.5L12 17l-6 3.3 1.5-6.5-5-4.4 6.6-.6z" fill="#f5a623"/></svg>{{ "{:.1}"|format(avg_rating) }} ({{ review_count }} ulasan)</span>
+                {% endif %}
+                {% if product.sold > 0 %}<span class="pd-sold">{{ product.sold }} terjual</span>{% endif %}
+                {% if !product.sku.is_empty() %}<span class="pd-sku">SKU: {{ product.sku }}</span>{% endif %}
+            </div>
+
+            <div class="pd-price-box">
+                <span class="pd-price">{{ s.currency() }} {{ product.price|rupiah }}</span>
+                {% if product.has_discount() %}
+                <span class="pd-compare">{{ s.currency() }} {{ product.compare_price|rupiah }}</span>
+                <span class="pd-save">Hemat {{ s.currency() }} {{ (product.compare_price - product.price)|rupiah }}</span>
+                {% endif %}
+            </div>
+
+            {% if !product.short_desc.is_empty() %}<p class="pd-short">{{ product.short_desc }}</p>{% endif %}
+
+            <div class="pd-stock">
+                {% if product.in_stock() %}
+                <span class="stock-in">● {% if product.track_stock %}Stok tersedia ({{ product.stock }}){% else %}Stok tersedia{% endif %}</span>
+                {% else %}
+                <span class="stock-out">● Stok habis</span>
+                {% endif %}
+            </div>
+
+            {% if product.in_stock() %}
+            <form action="/cart/add" method="post" class="pd-buy-form">
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <input type="hidden" name="redirect" value="/cart">
+                <div class="qty-control">
+                    <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
+                    <input type="number" name="quantity" id="qtyInput" value="1" min="1" {% if product.track_stock %}max="{{ product.stock }}"{% endif %} readonly>
+                    <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
+                </div>
+                <div class="pd-buttons">
+                    <button type="submit" class="btn btn-outline btn-lg btn-block">+ Keranjang</button>
+                    <button type="submit" formaction="/cart/add" class="btn btn-primary btn-lg btn-block" onclick="document.querySelector('input[name=redirect]').value='/checkout'">Beli Sekarang</button>
+                </div>
+            </form>
+            {% else %}
+            <div class="pd-buttons">
+                {% if !s.wa().is_empty() %}<a href="https://wa.me/{{ s.wa() }}?text=Halo,%20apakah%20produk%20{{ product.name }}%20sudah%20restok%3F" class="btn btn-outline btn-lg btn-block" target="_blank" rel="noopener">Tanya Ketersediaan</a>{% endif %}
+            </div>
+            {% endif %}
+
+            <div class="pd-perks">
+                <div class="perk"><span>{{ "shield"|icon|safe }}</span> Transaksi aman &amp; terpercaya</div>
+                <div class="perk"><span>{{ "truck"|icon|safe }}</span> Dikirim ke seluruh Indonesia</div>
+                <div class="perk"><span>{{ "chat"|icon|safe }}</span> Bantuan cepat via WhatsApp</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="pd-tabs">
+        <div class="pd-section">
+            <h2>Deskripsi Produk</h2>
+            <div class="content-body">{% if product.description.is_empty() %}<p>Belum ada deskripsi untuk produk ini.</p>{% else %}{{ product.description|richtext|safe }}{% endif %}</div>
+            {% if !product.tag_list().is_empty() %}
+            <div class="pd-tags">{% for t in product.tag_list() %}<span class="tag">#{{ t }}</span>{% endfor %}</div>
+            {% endif %}
+        </div>
+
+        <div class="pd-section" id="reviews">
+            <h2>Ulasan Pelanggan ({{ review_count }})</h2>
+            {% if reviews.is_empty() %}
+            <p class="muted">Belum ada ulasan. Jadilah yang pertama memberi ulasan!</p>
+            {% else %}
+            <div class="review-list">
+                {% for r in reviews %}
+                <div class="review-item">
+                    <div class="review-head">
+                        <div class="review-avatar">{{ r.customer_name|truncate_chars(1) }}</div>
+                        <div>
+                            <strong>{{ r.customer_name }}</strong>
+                            <div class="review-stars">{% for _ in 1..=r.rating %}<span class="star-full">{{ "star"|icon|safe }}</span>{% endfor %}{% for _ in r.rating..5 %}<span class="star-empty">{{ "star"|icon|safe }}</span>{% endfor %}</div>
+                        </div>
+                        <span class="review-date">{{ r.created_at|date }}</span>
+                    </div>
+                    {% if !r.comment.is_empty() %}<p class="review-comment">{{ r.comment }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form action="/product/{{ product.slug }}/review" method="post" class="review-form">
+                <h3>Tulis Ulasan</h3>
+                <div class="form-row">
+                    <input type="text" name="customer_name" placeholder="Nama Anda" class="form-input" required>
+                    <select name="rating" class="form-input rating-select">
+                        <option value="5">5 Bintang</option>
+                        <option value="4">4 Bintang</option>
+                        <option value="3">3 Bintang</option>
+                        <option value="2">2 Bintang</option>
+                        <option value="1">1 Bintang</option>
+                    </select>
+                </div>
+                <textarea name="comment" placeholder="Bagikan pengalaman Anda dengan produk ini..." class="form-input" rows="3"></textarea>
+                <button type="submit" class="btn btn-primary">Kirim Ulasan</button>
+            </form>
+        </div>
+    </div>
+
+    {% if !related.is_empty() %}
+    <div class="section">
+        <div class="section-head"><h2>Produk Serupa</h2></div>
+        <div class="product-grid">
+            {% for p in related %}{% include "partials/product_card.html" %}{% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

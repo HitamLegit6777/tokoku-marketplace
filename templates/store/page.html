@@ -1,0 +1,11 @@
+{% extends "store/base.html" %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+    <nav class="breadcrumb"><a href="/">Beranda</a> <span>/</span> <span>{{ page.title }}</span></nav>
+    <article class="content-page">
+        <h1 class="page-title">{{ page.title }}</h1>
+        <div class="content-body">{{ page.content|richtext|safe }}</div>
+    </article>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Admin - {{ store_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="login-body">
+<div class="login-card">
+    <div class="login-logo">{{ "bag"|icon|safe }}</div>
+    <h1>{{ store_name }}</h1>
+    <p class="login-sub">Masuk ke panel admin</p>
+    {% if !error.is_empty() %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+    <form action="/admin/login" method="post">
+        <div class="form-field">
+            <label>Username</label>
+            <input type="text" name="username" class="form-input" required autofocus placeholder="admin">
+        </div>
+        <div class="form-field">
+            <label>Password</label>
+            <input type="password" name="password" class="form-input" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block">Masuk</button>
+    </form>
+    <a href="/" class="login-back">&larr; Kembali ke toko</a>
+</div>
+</body>
+</html>

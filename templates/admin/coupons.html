@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+{% block title %}Kupon{% endblock %}
+{% block heading %}Kupon Diskon{% endblock %}
+{% block content %}
+<div class="split-layout">
+    <div class="split-main">
+        {% if coupons.is_empty() %}
+        <div class="empty-panel"><div class="empty-icon">{{ "ticket"|icon|safe }}</div><h3>Belum ada kupon</h3><p>Buat kupon diskon untuk menarik lebih banyak pembeli.</p></div>
+        {% else %}
+        <div class="card table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Kode</th><th>Diskon</th><th>Min. Belanja</th><th>Terpakai</th><th>Aksi</th></tr></thead>
+                <tbody>
+                    {% for c in coupons %}
+                    <tr>
+                        <td><strong class="coupon-code">{{ c.code }}</strong></td>
+                        <td>{% if c.type == "percent" %}{{ c.value }}%{% else %}{{ currency }} {{ c.value|rupiah }}{% endif %}</td>
+                        <td>{% if c.min_purchase > 0 %}{{ currency }} {{ c.min_purchase|rupiah }}{% else %}-{% endif %}</td>
+                        <td>{{ c.used_count }}{% if c.max_uses > 0 %} / {{ c.max_uses }}{% endif %}</td>
+                        <td class="row-actions">
+                            <button type="button" class="btn-sm btn-ghost" data-edit='{"id":{{ c.id }},"code":"{{ c.code|json_str|safe }}","type":"{{ c.type|json_str|safe }}","value":{{ c.value }},"min_purchase":{{ c.min_purchase }},"max_uses":{{ c.max_uses }}}'>{{ "pencil"|icon|safe }} Edit</button>
+                            <form action="/admin/coupons/{{ c.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Hapus kupon?')"><button class="btn-sm btn-danger">Hapus</button></form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    <aside class="split-side">
+        <div class="card">
+            <h3 data-edit-title>Buat Kupon</h3>
+            <form action="/admin/coupons" method="post" data-edit-form data-edit-title-text="Edit Kupon" data-edit-label="Simpan Perubahan">
+                <input type="hidden" name="id" value="">
+                <div class="form-field"><label>Kode Kupon <span class="req">*</span></label><input type="text" name="code" class="form-input" required placeholder="HEMAT10" style="text-transform:uppercase"></div>
+                <div class="form-field"><label>Tipe Diskon</label><select name="type" class="form-input"><option value="percent">Persen (%)</option><option value="fixed">Nominal ({{ currency }})</option></select></div>
+                <div class="form-field"><label>Nilai Diskon</label><input type="number" name="value" class="form-input" required placeholder="10"></div>
+                <div class="form-field"><label>Min. Belanja</label><input type="number" name="min_purchase" class="form-input" placeholder="0"></div>
+                <div class="form-field"><label>Batas Pemakaian (0 = tanpa batas)</label><input type="number" name="max_uses" class="form-input" value="0"></div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-block">Buat Kupon</button>
+                    <button type="button" class="btn btn-ghost btn-block" data-edit-cancel hidden>Batal</button>
+                </div>
+            </form>
+        </div>
+    </aside>
+</div>
+{% endblock %}

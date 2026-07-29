@@ -1,0 +1,23 @@
+{# Reusable product card. Expects `p` in scope (a Product), and `s` for currency. #}
+<a href="/product/{{ p.slug }}" class="product-card">
+    <div class="pc-media">
+        <img src="{{ p.main_image() }}" alt="{{ p.name }}" loading="lazy">
+        {% if p.has_discount() %}<span class="pc-badge pc-discount">-{{ p.discount_percent() }}%</span>{% endif %}
+        {% if !p.in_stock() %}<span class="pc-badge pc-soldout">Habis</span>{% endif %}
+        {% if p.is_featured && p.in_stock() %}<span class="pc-badge pc-featured">Unggulan</span>{% endif %}
+    </div>
+    <div class="pc-body">
+        {% if !p.category_name.is_empty() %}<span class="pc-cat">{{ p.category_name }}</span>{% endif %}
+        <h3 class="pc-name">{{ p.name }}</h3>
+        <div class="pc-price-row">
+            <span class="pc-price">{{ s.currency() }} {{ p.price|rupiah }}</span>
+            {% if p.has_discount() %}<span class="pc-compare">{{ s.currency() }} {{ p.compare_price|rupiah }}</span>{% endif %}
+        </div>
+        <div class="pc-meta">
+            {% if p.review_count > 0 %}
+            <span class="pc-rating"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2l2.9 6.3 6.6.6-5 4.4 1.5 6.5L12 17l-6 3.3 1.5-6.5-5-4.4 6.6-.6z" fill="#f5a623"/></svg>{{ "{:.1}"|format(p.avg_rating) }}</span>
+            {% endif %}
+            {% if p.sold > 0 %}<span class="pc-sold">{{ p.sold }} terjual</span>{% endif %}
+        </div>
+    </div>
+</a>

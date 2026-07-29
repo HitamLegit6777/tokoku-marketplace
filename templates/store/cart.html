@@ -1,0 +1,67 @@
+{% extends "store/base.html" %}
+{% block title %}Keranjang Belanja{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+    <nav class="breadcrumb"><a href="/">Beranda</a> <span>/</span> <span>Keranjang</span></nav>
+    <h1 class="page-title">Keranjang Belanja</h1>
+
+    {% if items.is_empty() %}
+    <div class="empty-state big">
+        <div class="empty-icon">{{ "cart"|icon|safe }}</div>
+        <h3>Keranjang masih kosong</h3>
+        <p>Yuk, temukan produk yang kamu suka dan mulai belanja!</p>
+        <a href="/products" class="btn btn-primary btn-lg">Mulai Belanja</a>
+    </div>
+    {% else %}
+    <div class="cart-layout">
+        <div class="cart-items">
+            {% if free_shipping_min > 0 %}
+            <div class="ship-progress {% if qualifies_free %}complete{% endif %}">
+                {% if qualifies_free %}
+                <span>{{ "gift"|icon|safe }} Selamat! Kamu dapat <strong>GRATIS ONGKIR</strong></span>
+                {% else %}
+                <span>Belanja <strong>{{ s.currency() }} {{ (free_shipping_min - subtotal)|rupiah }}</strong> lagi untuk <strong>GRATIS ONGKIR</strong></span>
+                {% endif %}
+                <div class="ship-bar"><div class="ship-fill" style="width:{% if qualifies_free %}100{% else %}{{ subtotal * 100 / free_shipping_min }}{% endif %}%"></div></div>
+            </div>
+            {% endif %}
+
+            {% for item in items %}
+            <div class="cart-item">
+                <a href="/product/{{ item.slug }}" class="ci-img"><img src="{{ item.image }}" alt="{{ item.name }}"></a>
+                <div class="ci-info">
+                    <a href="/product/{{ item.slug }}" class="ci-name">{{ item.name }}</a>
+                    <span class="ci-price">{{ s.currency() }} {{ item.price|rupiah }}</span>
+                    <form action="/cart/remove" method="post" class="ci-remove-form">
+                        <input type="hidden" name="product_id" value="{{ item.product_id }}">
+                        <button type="submit" class="ci-remove">Hapus</button>
+                    </form>
+                </div>
+                <div class="ci-actions">
+                    <form action="/cart/update" method="post" class="ci-qty-form">
+                        <input type="hidden" name="product_id" value="{{ item.product_id }}">
+                        <div class="qty-control small">
+                            <button type="submit" name="quantity" value="{{ item.quantity - 1 }}" class="qty-btn">−</button>
+                            <span class="qty-val">{{ item.quantity }}</span>
+                            <button type="submit" name="quantity" value="{{ item.quantity + 1 }}" class="qty-btn">+</button>
+                        </div>
+                    </form>
+                    <span class="ci-subtotal">{{ s.currency() }} {{ item.subtotal()|rupiah }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            <a href="/products" class="continue-shopping">&larr; Lanjut belanja</a>
+        </div>
+
+        <aside class="cart-summary">
+            <h3>Ringkasan Belanja</h3>
+            <div class="summary-row"><span>Subtotal</span><span>{{ s.currency() }} {{ subtotal|rupiah }}</span></div>
+            <div class="summary-row"><span>Ongkir (estimasi)</span><span>{% if qualifies_free %}<span class="free-tag">GRATIS</span>{% else %}{{ s.currency() }} {{ shipping_estimate|rupiah }}{% endif %}</span></div>
+            <div class="summary-total"><span>Total</span><span>{{ s.currency() }} {{ (subtotal + shipping_estimate)|rupiah }}</span></div>
+            <a href="/checkout" class="btn btn-primary btn-lg btn-block">Lanjut ke Pembayaran</a>
+            <div class="summary-note">{{ "shield"|icon|safe }} Transaksi aman &amp; data terlindungi</div>
+        </aside>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

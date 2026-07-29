@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block title %}Tampilan{% endblock %}
+{% block heading %}Tampilan &amp; Tema{% endblock %}
+{% block content %}
+<div class="card">
+    <h3>Pilih Tema Toko</h3>
+    <p class="muted">Klik tema untuk langsung menerapkannya ke toko. Perubahan langsung terlihat.</p>
+    <div class="theme-picker admin-theme-picker">
+        {% for t in themes %}
+        <form action="/admin/appearance/theme" method="post" class="theme-option-form">
+            <input type="hidden" name="theme" value="{{ t.id }}">
+            <button type="submit" class="theme-card-btn {% if current_theme == t.id %}selected{% endif %}">
+                <span class="theme-preview" style="background:{{ t.hero_gradient }}">
+                    <span class="tp-dot" style="background:{{ t.primary }}"></span>
+                    <span class="tp-dot" style="background:{{ t.accent }}"></span>
+                    <span class="tp-dot" style="background:{{ t.secondary }}"></span>
+                    {% if current_theme == t.id %}<span class="tp-active">{{ "check"|icon|safe }} Aktif</span>{% endif %}
+                </span>
+                <span class="theme-name">{{ t.name }}</span>
+                <span class="theme-desc">{{ t.description }}</span>
+            </button>
+        </form>
+        {% endfor %}
+    </div>
+</div>
+<div class="card">
+    <h3>Kustomisasi Lanjutan</h3>
+    <p class="muted">Logo, gambar hero, dan pengumuman dapat diatur di <a href="/admin/settings">Pengaturan</a>.</p>
+</div>
+{% endblock %}

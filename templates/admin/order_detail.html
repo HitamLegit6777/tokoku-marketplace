@@ -1,0 +1,85 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ order.order_number }}{% endblock %}
+{% block heading %}Pesanan {{ order.order_number }}{% endblock %}
+{% block content %}
+<a href="/admin/orders" class="back-link">&larr; Kembali ke pesanan</a>
+<div class="order-detail-grid">
+    <div class="od-left">
+        <div class="card">
+            <h3>Produk Dipesan</h3>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>Produk</th><th>Harga</th><th>Qty</th><th>Subtotal</th></tr></thead>
+                    <tbody>
+                        {% for item in order.items %}
+                        <tr>
+                            <td><div class="cell-product"><img src="{{ item.product_image }}" alt=""><strong>{{ item.product_name|truncate_chars(40) }}</strong></div></td>
+                            <td>{{ currency }} {{ item.price|rupiah }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ currency }} {{ item.subtotal|rupiah }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="od-totals">
+                <div class="summary-row"><span>Subtotal</span><span>{{ currency }} {{ order.subtotal|rupiah }}</span></div>
+                <div class="summary-row"><span>Ongkir</span><span>{{ currency }} {{ order.shipping_cost|rupiah }}</span></div>
+                {% if order.tax > 0 %}<div class="summary-row"><span>Pajak</span><span>{{ currency }} {{ order.tax|rupiah }}</span></div>{% endif %}
+                {% if order.discount > 0 %}<div class="summary-row"><span>Diskon</span><span>- {{ currency }} {{ order.discount|rupiah }}</span></div>{% endif %}
+                <div class="summary-total"><span>Total</span><span>{{ currency }} {{ order.total|rupiah }}</span></div>
+            </div>
+        </div>
+
+        {% if !order.payment_proof.is_empty() %}
+        <div class="card">
+            <h3>Bukti Pembayaran</h3>
+            <a href="{{ order.payment_proof }}" target="_blank"><img src="{{ order.payment_proof }}" alt="Bukti bayar" class="proof-img"></a>
+        </div>
+        {% endif %}
+    </div>
+
+    <aside class="od-right">
+        <div class="card">
+            <h3>Update Status</h3>
+            <form action="/admin/orders/{{ order.id }}/update" method="post">
+                <div class="form-field">
+                    <label>Status Pesanan</label>
+                    <select name="order_status" class="form-input">
+                        <option value="new" {% if order.order_status == "new" %}selected{% endif %}>Pesanan Baru</option>
+                        <option value="processing" {% if order.order_status == "processing" %}selected{% endif %}>Diproses</option>
+                        <option value="shipped" {% if order.order_status == "shipped" %}selected{% endif %}>Dikirim</option>
+                        <option value="completed" {% if order.order_status == "completed" %}selected{% endif %}>Selesai</option>
+                        <option value="cancelled" {% if order.order_status == "cancelled" %}selected{% endif %}>Dibatalkan</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Status Pembayaran</label>
+                    <select name="payment_status" class="form-input">
+                        <option value="pending" {% if order.payment_status == "pending" %}selected{% endif %}>Menunggu</option>
+                        <option value="paid" {% if order.payment_status == "paid" %}selected{% endif %}>Lunas</option>
+                        <option value="failed" {% if order.payment_status == "failed" %}selected{% endif %}>Gagal</option>
+                        <option value="refunded" {% if order.payment_status == "refunded" %}selected{% endif %}>Refund</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Nomor Resi</label>
+                    <input type="text" name="tracking_number" class="form-input" value="{{ order.tracking_number }}" placeholder="No. resi pengiriman">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Simpan Status</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Pelanggan</h3>
+            <div class="info-rows">
+                <div class="ir"><span>Nama</span><strong>{{ order.customer_name }}</strong></div>
+                <div class="ir"><span>Telepon</span><strong>{{ order.customer_phone }}</strong></div>
+                {% if !order.customer_email.is_empty() %}<div class="ir"><span>Email</span><strong>{{ order.customer_email }}</strong></div>{% endif %}
+                <div class="ir"><span>Alamat</span><strong>{{ order.shipping_address }}{% if !order.shipping_city.is_empty() %}, {{ order.shipping_city }}{% endif %}</strong></div>
+                {% if !order.shipping_note.is_empty() %}<div class="ir"><span>Catatan</span><strong>{{ order.shipping_note }}</strong></div>{% endif %}
+            </div>
+            <a href="https://wa.me/{{ order.customer_phone }}" target="_blank" class="btn btn-wa btn-block">{{ "chat"|icon|safe }} Chat Pelanggan</a>
+        </div>
+    </aside>
+</div>
+{% endblock %}

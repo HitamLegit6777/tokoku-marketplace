@@ -1,0 +1,129 @@
+{% extends "store/base.html" %}
+{% block content %}
+
+<section class="hero">
+    <div class="container hero-grid">
+        <div class="hero-content">
+            <span class="hero-eyebrow">Selamat datang di {{ s.store_name() }}</span>
+            <h1 class="hero-title">{{ s.settings.tagline }}</h1>
+            {% if !s.settings.description.is_empty() %}<p class="hero-sub">{{ s.settings.description|truncate_chars(140) }}</p>{% endif %}
+            <div class="hero-actions">
+                <a href="/products" class="btn btn-primary btn-lg">Belanja Sekarang</a>
+                {% if !s.nav_categories.is_empty() %}<a href="/category/{{ s.nav_categories[0].slug }}" class="btn btn-ghost btn-lg">Lihat Kategori</a>{% endif %}
+            </div>
+            <div class="hero-trust">
+                <div class="trust-item"><strong>100%</strong><span>Aman &amp; Terpercaya</span></div>
+                <div class="trust-item"><strong>Cepat</strong><span>Proses Kilat</span></div>
+                <div class="trust-item"><strong>Ramah</strong><span>CS Responsif</span></div>
+            </div>
+        </div>
+        <div class="hero-visual">
+            {% if !s.settings.hero_image_url.is_empty() %}
+            <img src="{{ s.settings.hero_image_url }}" alt="{{ s.store_name() }}">
+            {% else %}
+            <div class="hero-blob"></div>
+            <div class="hero-card hero-card-1">
+                <div class="hc-icon">{{ "bag"|icon|safe }}</div>
+                <div><strong>Produk Pilihan</strong><span>Kualitas terjaga</span></div>
+            </div>
+            <div class="hero-card hero-card-2">
+                <div class="hc-icon">{{ "truck"|icon|safe }}</div>
+                <div><strong>Gratis Ongkir</strong><span>Syarat berlaku</span></div>
+            </div>
+            <div class="hero-card hero-card-3">
+                <div class="hc-icon">{{ "star"|icon|safe }}</div>
+                <div><strong>Rating Tinggi</strong><span>Pelanggan puas</span></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% if !banners.is_empty() %}
+<section class="container promo-strip">
+    {% for b in banners %}
+    <a href="{% if b.link_url.is_empty() %}/products{% else %}{{ b.link_url }}{% endif %}" class="promo-card" {% if !b.image_url.is_empty() %}style="background-image:url('{{ b.image_url }}')"{% endif %}>
+        <div class="promo-overlay">
+            <h3>{{ b.title }}</h3>
+            {% if !b.subtitle.is_empty() %}<p>{{ b.subtitle }}</p>{% endif %}
+            <span class="promo-btn">{{ b.button_text }} &rarr;</span>
+        </div>
+    </a>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if !categories.is_empty() %}
+<section class="container section">
+    <div class="section-head">
+        <h2>Kategori</h2>
+        <a href="/products" class="section-link">Lihat semua &rarr;</a>
+    </div>
+    <div class="category-grid">
+        {% for c in categories %}
+        <a href="/category/{{ c.slug }}" class="category-card">
+            <div class="cc-icon">
+                {% if !c.image_url.is_empty() %}<img src="{{ c.image_url }}" alt="{{ c.name }}">{% else %}<span class="cc-emoji">{% if c.icon == "coffee" %}{{ "coffee"|icon|safe }}{% else if c.icon == "cookie" %}{{ "cookie"|icon|safe }}{% else if c.icon == "cup" %}{{ "cup"|icon|safe }}{% else if c.icon == "gift" %}{{ "gift"|icon|safe }}{% else %}{{ "tag"|icon|safe }}{% endif %}</span>{% endif %}
+            </div>
+            <span class="cc-name">{{ c.name }}</span>
+            <span class="cc-count">{{ c.product_count }} produk</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if !featured.is_empty() %}
+<section class="container section">
+    <div class="section-head">
+        <h2>Produk Unggulan</h2>
+        <a href="/products?sort=newest" class="section-link">Lihat semua &rarr;</a>
+    </div>
+    <div class="product-grid">
+        {% for p in featured %}{% include "partials/product_card.html" %}{% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="container section banner-cta">
+    <div class="cta-inner">
+        <div>
+            <h2>Belanja lebih hemat hari ini!</h2>
+            <p>Temukan produk favoritmu dengan harga terbaik. Checkout mudah, pembayaran aman.</p>
+        </div>
+        <a href="/products" class="btn btn-light btn-lg">Mulai Belanja</a>
+    </div>
+</section>
+
+{% if !best_sellers.is_empty() %}
+<section class="container section">
+    <div class="section-head">
+        <h2>Terlaris</h2>
+        <a href="/products?sort=popular" class="section-link">Lihat semua &rarr;</a>
+    </div>
+    <div class="product-grid">
+        {% for p in best_sellers %}{% include "partials/product_card.html" %}{% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if !newest.is_empty() %}
+<section class="container section">
+    <div class="section-head">
+        <h2>Produk Terbaru</h2>
+        <a href="/products?sort=newest" class="section-link">Lihat semua &rarr;</a>
+    </div>
+    <div class="product-grid">
+        {% for p in newest %}{% include "partials/product_card.html" %}{% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="container section features-row">
+    <div class="feature-box"><div class="fb-icon">{{ "shield"|icon|safe }}</div><h4>Transaksi Aman</h4><p>Data dan pembayaran terlindungi</p></div>
+    <div class="feature-box"><div class="fb-icon">{{ "bolt"|icon|safe }}</div><h4>Proses Cepat</h4><p>Pesanan diproses secepatnya</p></div>
+    <div class="feature-box"><div class="fb-icon">{{ "chat"|icon|safe }}</div><h4>CS Ramah</h4><p>Siap membantu via WhatsApp</p></div>
+    <div class="feature-box"><div class="fb-icon">{{ "check-circle"|icon|safe }}</div><h4>Kualitas Terjamin</h4><p>Produk pilihan terbaik</p></div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "store/base.html" %}
+{% block title %}Halaman tidak ditemukan{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+    <div class="empty-state big">
+        <div class="empty-icon">{{ "cart"|icon|safe }}</div>
+        <h1>404 - Halaman tidak ditemukan</h1>
+        <p>Maaf, halaman yang Anda cari tidak ada atau sudah dipindahkan.</p>
+        <a href="/" class="btn btn-primary btn-lg">Kembali ke Beranda</a>
+    </div>
+</div>
+{% endblock %}

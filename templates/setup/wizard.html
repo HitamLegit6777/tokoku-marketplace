@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Toko - TokoKu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <style>{{ theme_css|safe }}</style>
+</head>
+<body class="setup-body">
+<div class="setup-wrap">
+    <div class="setup-header">
+        <div class="setup-logo">{{ "bag"|icon|safe }} TokoKu</div>
+        <h1>Selamat datang! Ayo siapkan tokomu</h1>
+        <p>Cukup isi beberapa langkah, tanpa perlu coding. Bisa diubah kapan saja nanti.</p>
+    </div>
+
+    <div class="setup-progress">
+        <div class="sp-step active" data-step="1"><span>1</span> Toko</div>
+        <div class="sp-line"></div>
+        <div class="sp-step" data-step="2"><span>2</span> Tampilan</div>
+        <div class="sp-line"></div>
+        <div class="sp-step" data-step="3"><span>3</span> Kontak</div>
+        <div class="sp-line"></div>
+        <div class="sp-step" data-step="4"><span>4</span> Pembayaran</div>
+    </div>
+
+    <form action="/setup" method="post" class="setup-form" id="setupForm">
+        <!-- Step 1: Store -->
+        <div class="setup-step active" data-step="1">
+            <h2>Tentang Tokomu</h2>
+            <div class="form-field">
+                <label>Nama Toko <span class="req">*</span></label>
+                <input type="text" name="store_name" class="form-input" required placeholder="Contoh: Dapur Nusantara" value="{{ settings.store_name }}">
+            </div>
+            <div class="form-field">
+                <label>Tagline / Slogan</label>
+                <input type="text" name="tagline" class="form-input" placeholder="Contoh: Camilan enak, harga bersahabat" value="{{ settings.tagline }}">
+            </div>
+            <div class="form-field">
+                <label>Deskripsi Singkat</label>
+                <textarea name="description" class="form-input" rows="3" placeholder="Ceritakan sedikit tentang tokomu...">{{ settings.description }}</textarea>
+            </div>
+            <div class="form-field">
+                <label>Mata Uang</label>
+                <input type="text" name="currency" class="form-input" value="{% if settings.currency.is_empty() %}Rp{% else %}{{ settings.currency }}{% endif %}">
+            </div>
+            <div class="setup-nav"><span></span><button type="button" class="btn btn-primary" onclick="nextStep()">Lanjut &rarr;</button></div>
+        </div>
+
+        <!-- Step 2: Theme -->
+        <div class="setup-step" data-step="2">
+            <h2>Pilih Tema Tampilan</h2>
+            <p class="muted">Pilih gaya yang paling cocok dengan tokomu. Bisa diganti kapan saja.</p>
+            <div class="theme-picker">
+                {% for t in themes %}
+                <label class="theme-option">
+                    <input type="radio" name="theme" value="{{ t.id }}" {% if settings.theme == t.id %}checked{% else if loop.first && settings.theme.is_empty() %}checked{% endif %}>
+                    <span class="theme-card">
+                        <span class="theme-preview" style="background:{{ t.hero_gradient }}">
+                            <span class="tp-dot" style="background:{{ t.primary }}"></span>
+                            <span class="tp-dot" style="background:{{ t.accent }}"></span>
+                            <span class="tp-dot" style="background:{{ t.secondary }}"></span>
+                        </span>
+                        <span class="theme-name">{{ t.name }}</span>
+                        <span class="theme-desc">{{ t.description }}</span>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            <div class="setup-nav"><button type="button" class="btn btn-ghost" onclick="prevStep()">&larr; Kembali</button><button type="button" class="btn btn-primary" onclick="nextStep()">Lanjut &rarr;</button></div>
+        </div>
+
+        <!-- Step 3: Contact -->
+        <div class="setup-step" data-step="3">
+            <h2>Informasi Kontak</h2>
+            <div class="form-field">
+                <label>Nomor WhatsApp <span class="req">*</span></label>
+                <input type="tel" name="whatsapp" class="form-input" placeholder="08xxxxxxxxxx" value="{{ settings.whatsapp }}">
+                <small class="muted">Digunakan untuk tombol chat &amp; konfirmasi pesanan.</small>
+            </div>
+            <div class="form-field">
+                <label>Email</label>
+                <input type="email" name="email" class="form-input" placeholder="toko@contoh.com" value="{{ settings.email }}">
+            </div>
+            <div class="form-field">
+                <label>Alamat Toko</label>
+                <input type="text" name="address" class="form-input" placeholder="Kota, Provinsi" value="{{ settings.address }}">
+            </div>
+            <div class="form-field">
+                <label>Instagram (username)</label>
+                <input type="text" name="instagram" class="form-input" placeholder="tokoku" value="{{ settings.instagram }}">
+            </div>
+            <div class="form-grid-2">
+                <div class="form-field">
+                    <label>Ongkir Flat</label>
+                    <input type="number" name="shipping_flat" class="form-input" placeholder="15000" value="{% if settings.shipping_flat > 0 %}{{ settings.shipping_flat }}{% endif %}">
+                </div>
+                <div class="form-field">
+                    <label>Gratis Ongkir Min. Belanja</label>
+                    <input type="number" name="shipping_free_min" class="form-input" placeholder="150000" value="{% if settings.shipping_free_min > 0 %}{{ settings.shipping_free_min }}{% endif %}">
+                </div>
+            </div>
+            <div class="setup-nav"><button type="button" class="btn btn-ghost" onclick="prevStep()">&larr; Kembali</button><button type="button" class="btn btn-primary" onclick="nextStep()">Lanjut &rarr;</button></div>
+        </div>
+
+        <!-- Step 4: Payment -->
+        <div class="setup-step" data-step="4">
+            <h2>Metode Pembayaran</h2>
+            <p class="muted">Aktifkan cara pembayaran yang kamu terima. Semua manual, tanpa biaya tambahan.</p>
+
+            <label class="toggle-card">
+                <input type="checkbox" name="bank_transfer_enabled" checked>
+                <span class="tc-content"><strong>{{ "bank"|icon|safe }} Transfer Bank</strong><small>Terima pembayaran via transfer rekening</small></span>
+            </label>
+            <div class="form-grid-2">
+                <div class="form-field"><label>Nama Bank</label><input type="text" name="bank_name" class="form-input" placeholder="BCA"></div>
+                <div class="form-field"><label>No. Rekening</label><input type="text" name="bank_account_number" class="form-input" placeholder="1234567890"></div>
+            </div>
+            <div class="form-field"><label>Atas Nama</label><input type="text" name="bank_account_holder" class="form-input" placeholder="Nama pemilik rekening"></div>
+
+            <label class="toggle-card">
+                <input type="checkbox" name="qris_enabled">
+                <span class="tc-content"><strong>{{ "qr"|icon|safe }} QRIS</strong><small>Scan untuk bayar (bisa upload gambar QRIS nanti)</small></span>
+            </label>
+
+            <label class="toggle-card">
+                <input type="checkbox" name="ewallet_enabled">
+                <span class="tc-content"><strong>{{ "card"|icon|safe }} E-Wallet</strong><small>OVO / GoPay / Dana / ShopeePay</small></span>
+            </label>
+            <div class="form-grid-2">
+                <div class="form-field"><label>Jenis E-Wallet</label><input type="text" name="ewallet_name" class="form-input" placeholder="GoPay / OVO / Dana"></div>
+                <div class="form-field"><label>Nomor</label><input type="text" name="ewallet_number" class="form-input" placeholder="08xxxxxxxxxx"></div>
+            </div>
+
+            <label class="toggle-card">
+                <input type="checkbox" name="cod_enabled">
+                <span class="tc-content"><strong>{{ "cash"|icon|safe }} Bayar di Tempat (COD)</strong><small>Bayar tunai saat barang diterima</small></span>
+            </label>
+
+            <div class="setup-nav"><button type="button" class="btn btn-ghost" onclick="prevStep()">&larr; Kembali</button><button type="submit" class="btn btn-primary btn-lg">{{ "check"|icon|safe }} Selesai &amp; Buka Toko</button></div>
+        </div>
+    </form>
+    <p class="setup-skip"><a href="/admin">Lewati, saya atur nanti di admin &rarr;</a></p>
+</div>
+<script src="/static/js/setup.js"></script>
+</body>
+</html>

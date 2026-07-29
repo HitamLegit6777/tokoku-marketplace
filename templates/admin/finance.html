@@ -1,0 +1,151 @@
+{% extends "admin/base.html" %}
+{% block title %}Laporan Keuangan{% endblock %}
+{% block heading %}Laporan Keuangan{% endblock %}
+{% block content %}
+
+{# ---- Period selector ---- #}
+<div class="order-tabs">
+    <a href="/admin/finance?period=7" class="ot {% if days == 7 %}active{% endif %}">7 Hari</a>
+    <a href="/admin/finance?period=30" class="ot {% if days == 30 %}active{% endif %}">30 Hari</a>
+    <a href="/admin/finance?period=90" class="ot {% if days == 90 %}active{% endif %}">90 Hari</a>
+    <a href="/admin/finance?period=365" class="ot {% if days == 365 %}active{% endif %}">1 Tahun</a>
+</div>
+<p class="muted" style="margin:-.25rem 0 1rem">Periode: {{ report.start_date }} s/d {{ report.end_date }} &middot; hanya pesanan <strong>Sudah Dibayar</strong>.</p>
+
+{# ---- Headline figures ---- #}
+<div class="stat-grid">
+    <div class="stat-card stat-primary">
+        <div class="stat-icon">{{ "money"|icon|safe }}</div>
+        <div class="stat-info">
+            <span class="stat-label">Pendapatan Kotor</span>
+            <strong class="stat-value">{{ currency }} {{ report.gross_revenue|rupiah }}</strong>
+            <span class="stat-sub">{{ report.paid_orders }} pesanan lunas</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">{{ "cash"|icon|safe }}</div>
+        <div class="stat-info">
+            <span class="stat-label">Laba Kotor</span>
+            <strong class="stat-value">{{ currency }} {{ report.gross_profit|rupiah }}</strong>
+            <span class="stat-sub">Margin {{ "{:.1}"|format(report.margin_percent) }}%</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">{{ "box"|icon|safe }}</div>
+        <div class="stat-info">
+            <span class="stat-label">Modal (HPP)</span>
+            <strong class="stat-value">{{ currency }} {{ report.cogs|rupiah }}</strong>
+            <span class="stat-sub">Harga pokok penjualan</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">{{ "chart"|icon|safe }}</div>
+        <div class="stat-info">
+            <span class="stat-label">Rata-rata / Pesanan</span>
+            <strong class="stat-value">{{ currency }} {{ report.avg_order_value|rupiah }}</strong>
+            <span class="stat-sub">Nilai order rata-rata</span>
+        </div>
+    </div>
+</div>
+
+{% if report.pending_amount > 0 || report.refunded_amount > 0 %}
+<div class="alert alert-warn">
+    {{ "warning"|icon|safe }}
+    {% if report.pending_amount > 0 %}Ada {{ report.pending_orders }} pesanan belum dibayar senilai <strong>{{ currency }} {{ report.pending_amount|rupiah }}</strong>.{% endif %}
+    {% if report.refunded_amount > 0 %} {{ report.refunded_orders }} pesanan direfund ({{ currency }} {{ report.refunded_amount|rupiah }}).{% endif %}
+    <a href="/admin/orders?status=all">Kelola pesanan</a>
+</div>
+{% endif %}
+
+{# ---- Profit & Loss breakdown ---- #}
+<div class="dash-grid">
+    <div class="dash-card">
+        <div class="dash-card-head"><h3>Ringkasan Laba Rugi</h3></div>
+        <div class="table-wrap">
+            <table class="data-table fin-pl">
+                <tbody>
+                    <tr><td>Penjualan Produk</td><td class="num">{{ currency }} {{ report.product_sales|rupiah }}</td></tr>
+                    <tr><td>Ongkos Kirim Diterima</td><td class="num">{{ currency }} {{ report.shipping_income|rupiah }}</td></tr>
+                    <tr><td>Pajak Terkumpul</td><td class="num">{{ currency }} {{ report.tax_collected|rupiah }}</td></tr>
+                    <tr><td>Diskon Diberikan</td><td class="num neg">- {{ currency }} {{ report.discounts_given|rupiah }}</td></tr>
+                    <tr class="fin-subtotal"><td>Total Pendapatan Kotor</td><td class="num">{{ currency }} {{ report.gross_revenue|rupiah }}</td></tr>
+                    <tr><td>Modal / HPP</td><td class="num neg">- {{ currency }} {{ report.cogs|rupiah }}</td></tr>
+                    <tr class="fin-total"><td>Laba Bersih (est.)</td><td class="num pos">{{ currency }} {{ report.net_profit|rupiah }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted" style="padding:.5rem .9rem 0;font-size:.78rem">HPP dihitung dari harga modal produk saat ini. Laba bersih belum termasuk biaya operasional lain.</p>
+    </div>
+
+    <div class="dash-card">
+        <div class="dash-card-head"><h3>Metode Pembayaran</h3></div>
+        {% if report.by_payment.is_empty() %}
+        <p class="muted center">Belum ada transaksi lunas.</p>
+        {% else %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Metode</th><th class="num">Order</th><th class="num">Jumlah</th></tr></thead>
+                <tbody>
+                    {% for m in report.by_payment %}
+                    <tr>
+                        <td>
+                            {% if m.label == "transfer" %}Transfer Bank
+                            {% else if m.label == "qris" %}QRIS
+                            {% else if m.label == "cod" %}COD (Bayar di Tempat)
+                            {% else if m.label == "ewallet" %}E-Wallet
+                            {% else if m.label == "midtrans" %}Midtrans
+                            {% else %}{{ m.label }}{% endif %}
+                        </td>
+                        <td class="num">{{ m.orders }}</td>
+                        <td class="num">{{ currency }} {{ m.amount|rupiah }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ---- Monthly revenue chart ---- #}
+<div class="dash-card">
+    <div class="dash-card-head"><h3>Pendapatan per Bulan (12 bulan terakhir)</h3></div>
+    {% if report.monthly.is_empty() %}
+    <p class="muted center">Belum ada data penjualan.</p>
+    {% else %}
+    <div class="mini-chart">
+        {% for m in report.monthly %}
+        <div class="chart-bar-wrap">
+            <div class="chart-bar" style="height:{{ m.amount * 100 / report.max_monthly }}%" title="{{ currency }} {{ m.amount|rupiah }} ({{ m.orders }} order)"></div>
+            <span class="chart-label">{{ m.label|truncate_chars(7) }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+{# ---- Top products by revenue ---- #}
+<div class="dash-card">
+    <div class="dash-card-head"><h3>Produk Penyumbang Pendapatan Teratas</h3><a href="/admin/products" class="dash-link">Semua produk</a></div>
+    {% if report.top_products.is_empty() %}
+    <p class="muted center">Belum ada penjualan pada periode ini.</p>
+    {% else %}
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Produk</th><th class="num">Qty</th><th class="num">Pendapatan</th><th class="num">Modal</th><th class="num">Laba</th></tr></thead>
+            <tbody>
+                {% for p in report.top_products %}
+                <tr>
+                    <td>{{ p.name|truncate_chars(40) }}</td>
+                    <td class="num">{{ p.qty }}</td>
+                    <td class="num">{{ currency }} {{ p.revenue|rupiah }}</td>
+                    <td class="num muted">{{ currency }} {{ p.cost|rupiah }}</td>
+                    <td class="num pos">{{ currency }} {{ p.profit|rupiah }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
