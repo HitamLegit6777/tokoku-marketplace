@@ -70,16 +70,11 @@ cargo run --release
 
 Server berjalan di **http://localhost:8080** (bisa diubah lewat `PORT`).
 
-Saat pertama kali dijalankan, database akan otomatis dibuat dan diisi data contoh, serta akun admin default dibuat.
+Saat pertama kali dijalankan, database akan otomatis dibuat dan diisi data contoh, serta akun admin dibuat.
 
-### Akun admin default
-| Field    | Nilai      |
-|----------|------------|
-| URL      | `/admin`   |
-| Username | `admin`    |
-| Password | `admin123` |
+### Akun admin pertama
 
-> ⚠️ **Segera ganti password** setelah login pertama. Atur juga lewat `ADMIN_USER` / `ADMIN_PASSWORD` di `.env` sebelum boot pertama.
+URL admin adalah `/admin`. Atur `ADMIN_USER` dan `ADMIN_PASSWORD` yang kuat di `.env` **sebelum boot pertama**. Jika `ADMIN_PASSWORD` tidak diatur, aplikasi membuat password acak 24 karakter dan menampilkannya sekali di log startup. Segera ganti password melalui Pengaturan setelah login.
 
 ---
 
@@ -90,8 +85,9 @@ Saat pertama kali dijalankan, database akan otomatis dibuat dan diisi data conto
 | `PORT`           | `8080`                       | Port server                       |
 | `BASE_URL`       | `http://localhost:8080`      | URL dasar untuk link              |
 | `DATABASE_PATH`  | `data/tokoku.db`             | Lokasi file SQLite                |
+| `SESSION_DATABASE_PATH` | `data/sessions.db`     | Lokasi sesi persisten             |
 | `ADMIN_USER`     | `admin`                      | Username admin (boot pertama)     |
-| `ADMIN_PASSWORD` | `admin123`                   | Password admin (boot pertama)     |
+| `ADMIN_PASSWORD` | acak jika kosong             | Password admin (boot pertama)     |
 | `RUST_LOG`       | `tokoku=info`                | Level log                         |
 
 ---

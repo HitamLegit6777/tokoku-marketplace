@@ -6,7 +6,12 @@ use tower_sessions::Session;
 const CART_KEY: &str = "cart";
 
 pub async fn get_cart(session: &Session) -> Vec<CartItem> {
-    session.get::<Vec<CartItem>>(CART_KEY).await.ok().flatten().unwrap_or_default()
+    session
+        .get::<Vec<CartItem>>(CART_KEY)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_default()
 }
 
 pub async fn save_cart(session: &Session, cart: &[CartItem]) {
@@ -16,11 +21,16 @@ pub async fn save_cart(session: &Session, cart: &[CartItem]) {
 pub async fn add_item(session: &Session, item: CartItem) {
     let mut cart = get_cart(session).await;
     if let Some(existing) = cart.iter_mut().find(|c| c.product_id == item.product_id) {
-        existing.quantity += item.quantity;
+        existing.quantity = existing
+            .quantity
+            .saturating_add(item.quantity)
+            .clamp(1, 999);
         if existing.max_stock > 0 && existing.quantity > existing.max_stock {
             existing.quantity = existing.max_stock;
         }
     } else {
+        let mut item = item;
+        item.quantity = item.quantity.clamp(1, 999);
         cart.push(item);
     }
     save_cart(session, &cart).await;
@@ -31,7 +41,7 @@ pub async fn update_quantity(session: &Session, product_id: i64, quantity: i64) 
     if quantity <= 0 {
         cart.retain(|c| c.product_id != product_id);
     } else if let Some(item) = cart.iter_mut().find(|c| c.product_id == product_id) {
-        item.quantity = quantity;
+        item.quantity = quantity.clamp(1, 999);
         if item.max_stock > 0 && item.quantity > item.max_stock {
             item.quantity = item.max_stock;
         }
@@ -50,9 +60,11 @@ pub async fn clear_cart(session: &Session) {
 }
 
 pub fn cart_subtotal(cart: &[CartItem]) -> i64 {
-    cart.iter().map(|c| c.subtotal()).sum()
+    cart.iter()
+        .fold(0i64, |sum, c| sum.saturating_add(c.subtotal()))
 }
 
 pub fn cart_count(cart: &[CartItem]) -> i64 {
-    cart.iter().map(|c| c.quantity).sum()
+    cart.iter()
+        .fold(0i64, |sum, c| sum.saturating_add(c.quantity))
 }

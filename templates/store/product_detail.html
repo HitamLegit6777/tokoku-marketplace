@@ -15,10 +15,10 @@
 {
   "@context": "https://schema.org",
   "@type": "Product",
-  "name": "{{ product.name }}",
-  "description": "{% if !product.short_desc.is_empty() %}{{ product.short_desc }}{% else %}{{ product.name }}{% endif %}",
+  "name": "{{ product.name|json_str|safe }}",
+  "description": "{% if !product.short_desc.is_empty() %}{{ product.short_desc|json_str|safe }}{% else %}{{ product.name|json_str|safe }}{% endif %}",
   "image": "{% if product.main_image().starts_with("http") %}{{ product.main_image() }}{% else %}{{ s.base_url }}{{ product.main_image() }}{% endif %}",
-  "sku": "{{ product.sku }}",
+  "sku": "{{ product.sku|json_str|safe }}",
   "url": "{{ s.base_url }}/product/{{ product.slug }}",
   "offers": {
     "@type": "Offer",
@@ -47,7 +47,7 @@
             {% if images.len() > 1 %}
             <div class="pd-thumbs">
                 {% for img in images %}
-                <button class="pd-thumb {% if loop.first %}active{% endif %}" onclick="setMainImage('{{ img }}', this)"><img src="{{ img }}" alt="{{ product.name }} {{ loop.index }}"></button>
+                <button class="pd-thumb {% if loop.first %}active{% endif %}" data-src="{{ img }}" onclick="setMainImage(this.dataset.src, this)"><img src="{{ img }}" alt="{{ product.name }} {{ loop.index }}"></button>
                 {% endfor %}
             </div>
             {% endif %}
@@ -144,7 +144,7 @@
             <form action="/product/{{ product.slug }}/review" method="post" class="review-form">
                 <h3>Tulis Ulasan</h3>
                 <div class="form-row">
-                    <input type="text" name="customer_name" placeholder="Nama Anda" class="form-input" required>
+                    <input type="text" name="customer_name" placeholder="Nama Anda" class="form-input" required maxlength="100">
                     <select name="rating" class="form-input rating-select">
                         <option value="5">5 Bintang</option>
                         <option value="4">4 Bintang</option>
@@ -153,7 +153,7 @@
                         <option value="1">1 Bintang</option>
                     </select>
                 </div>
-                <textarea name="comment" placeholder="Bagikan pengalaman Anda dengan produk ini..." class="form-input" rows="3"></textarea>
+                <textarea name="comment" placeholder="Bagikan pengalaman Anda dengan produk ini..." class="form-input" rows="3" maxlength="2000"></textarea>
                 <button type="submit" class="btn btn-primary">Kirim Ulasan</button>
             </form>
         </div>

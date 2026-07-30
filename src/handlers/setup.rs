@@ -24,9 +24,17 @@ struct WizardTemplate {
 
 pub async fn wizard(State(state): State<AppState>) -> Response {
     let settings = state.settings();
+    if settings.setup_done {
+        return Redirect::to("/admin/login").into_response();
+    }
     let theme = themes::get_theme(&settings.theme);
     let theme_css = theme.to_css_vars();
-    WizardTemplate { settings, themes: themes::THEMES, theme_css }.page()
+    WizardTemplate {
+        settings,
+        themes: themes::THEMES,
+        theme_css,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -79,10 +87,17 @@ fn checkbox(v: &Option<String>) -> bool {
 
 pub async fn save_wizard(State(state): State<AppState>, Form(form): Form<WizardForm>) -> Response {
     let mut settings = state.settings();
-    settings.store_name = if form.store_name.trim().is_empty() { "Toko Saya".into() } else { form.store_name.trim().to_string() };
+    if settings.setup_done {
+        return (axum::http::StatusCode::FORBIDDEN, "Setup sudah selesai").into_response();
+    }
+    settings.store_name = if form.store_name.trim().is_empty() {
+        "Toko Saya".into()
+    } else {
+        form.store_name.trim().to_string()
+    };
     settings.tagline = form.tagline.trim().to_string();
     settings.description = form.description.trim().to_string();
-    if !form.theme.is_empty() {
+    if themes::THEMES.iter().any(|t| t.id == form.theme) {
         settings.theme = form.theme;
     }
     settings.whatsapp = form.whatsapp.trim().to_string();
@@ -90,7 +105,11 @@ pub async fn save_wizard(State(state): State<AppState>, Form(form): Form<WizardF
     settings.email = form.email.trim().to_string();
     settings.address = form.address.trim().to_string();
     settings.instagram = form.instagram.trim().to_string();
-    settings.currency = if form.currency.trim().is_empty() { "Rp".into() } else { form.currency.trim().to_string() };
+    settings.currency = if form.currency.trim().is_empty() {
+        "Rp".into()
+    } else {
+        form.currency.trim().to_string()
+    };
     settings.shipping_flat = form.shipping_flat.unwrap_or(0).max(0);
     settings.shipping_free_min = form.shipping_free_min.unwrap_or(0).max(0);
 

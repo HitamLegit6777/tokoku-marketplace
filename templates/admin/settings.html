@@ -46,5 +46,19 @@
 
     <div class="sticky-save"><button type="submit" class="btn btn-primary btn-lg">Simpan Pengaturan</button></div>
 </form>
+
+<form action="/admin/password" method="post" class="settings-form">
+    <div class="card">
+        <h3>Keamanan Admin</h3>
+        <p class="muted">Gunakan minimal 10 karakter. Setelah diganti, gunakan password baru pada login berikutnya.</p>
+        <div class="form-grid-2">
+            <div class="form-field"><label>Password Saat Ini</label><input type="password" name="current_password" class="form-input" required autocomplete="current-password"></div>
+            <div></div>
+            <div class="form-field"><label>Password Baru</label><input type="password" name="new_password" class="form-input" minlength="10" required autocomplete="new-password"></div>
+            <div class="form-field"><label>Ulangi Password Baru</label><input type="password" name="confirm_password" class="form-input" minlength="10" required autocomplete="new-password"></div>
+        </div>
+        <button type="submit" class="btn btn-primary">Ganti Password</button>
+    </div>
+</form>
 {% endblock %}
 {% block scripts %}<script src="/static/js/upload.js" defer></script>{% endblock %}

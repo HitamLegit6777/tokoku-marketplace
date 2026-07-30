@@ -36,9 +36,7 @@ pub fn server_error<E: std::fmt::Display>(e: E) -> Response {
     tracing::error!("internal error: {e}");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
-        Html(format!(
-            "<h1>Terjadi kesalahan</h1><p>Maaf, ada masalah di server. Silakan coba lagi.</p><pre style='color:#888'>{e}</pre>"
-        )),
+        Html("<h1>Terjadi kesalahan</h1><p>Maaf, ada masalah di server. Silakan coba lagi.</p>"),
     )
         .into_response()
 }

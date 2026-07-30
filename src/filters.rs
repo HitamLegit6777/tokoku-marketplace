@@ -10,10 +10,14 @@ pub trait ToI64 {
     fn to_i64(&self) -> i64;
 }
 impl ToI64 for i64 {
-    fn to_i64(&self) -> i64 { *self }
+    fn to_i64(&self) -> i64 {
+        *self
+    }
 }
 impl<T: ToI64 + ?Sized> ToI64 for &T {
-    fn to_i64(&self) -> i64 { (**self).to_i64() }
+    fn to_i64(&self) -> i64 {
+        (**self).to_i64()
+    }
 }
 
 /// {{ amount|rupiah }} -> "1.500.000"
@@ -70,4 +74,17 @@ pub fn json_str<T: AsRef<str>>(s: T) -> ::askama::Result<String> {
         }
     }
     Ok(out)
+}
+
+/// Only allow local paths and http(s) URLs in href/src attributes.
+pub fn safe_url<T: AsRef<str>>(s: T) -> ::askama::Result<String> {
+    let s = s.as_ref().trim();
+    if (s.starts_with('/') && !s.starts_with("//"))
+        || s.starts_with("https://")
+        || s.starts_with("http://")
+    {
+        Ok(s.to_string())
+    } else {
+        Ok("#".to_string())
+    }
 }

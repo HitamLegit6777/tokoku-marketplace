@@ -16,7 +16,9 @@ pub fn seed_if_empty(db: &Db) -> Result<()> {
     let mut s: Settings = db::get_settings(db)?;
     s.store_name = "Dapur Nusantara".into();
     s.tagline = "Camilan & Kopi Nusantara, dibuat dengan cinta".into();
-    s.description = "UMKM makanan ringan dan kopi khas Indonesia. Bahan pilihan, produksi rumahan, rasa juara.".into();
+    s.description =
+        "UMKM makanan ringan dan kopi khas Indonesia. Bahan pilihan, produksi rumahan, rasa juara."
+            .into();
     s.theme = "coffee".into();
     s.whatsapp = "081234567890".into();
     s.phone = "081234567890".into();
@@ -26,7 +28,8 @@ pub fn seed_if_empty(db: &Db) -> Result<()> {
     s.currency = "Rp".into();
     s.shipping_flat = 15000;
     s.shipping_free_min = 150000;
-    s.announcement = "Gratis ongkir untuk pembelian di atas Rp 150.000! Berlaku se-Indonesia.".into();
+    s.announcement =
+        "Gratis ongkir untuk pembelian di atas Rp 150.000! Berlaku se-Indonesia.".into();
     s.announcement_on = true;
     s.payment_config = json!({
         "bank_transfer_enabled": true,
@@ -40,14 +43,43 @@ pub fn seed_if_empty(db: &Db) -> Result<()> {
         "ewallet_name": "GoPay / OVO / Dana",
         "ewallet_number": "081234567890",
         "midtrans_enabled": false
-    }).to_string();
+    })
+    .to_string();
     db::update_settings(db, &s)?;
 
     // --- Categories ---
-    let cat_snack = db::create_category(db, "Camilan", "camilan", "Keripik, kue kering, dan camilan renyah", "cookie", "")?;
-    let cat_coffee = db::create_category(db, "Kopi", "kopi", "Biji dan bubuk kopi Nusantara pilihan", "coffee", "")?;
-    let cat_drink = db::create_category(db, "Minuman", "minuman", "Minuman tradisional siap seduh", "cup", "")?;
-    let cat_gift = db::create_category(db, "Paket Hadiah", "paket-hadiah", "Hampers & paket spesial", "gift", "")?;
+    let cat_snack = db::create_category(
+        db,
+        "Camilan",
+        "camilan",
+        "Keripik, kue kering, dan camilan renyah",
+        "cookie",
+        "",
+    )?;
+    let cat_coffee = db::create_category(
+        db,
+        "Kopi",
+        "kopi",
+        "Biji dan bubuk kopi Nusantara pilihan",
+        "coffee",
+        "",
+    )?;
+    let cat_drink = db::create_category(
+        db,
+        "Minuman",
+        "minuman",
+        "Minuman tradisional siap seduh",
+        "cup",
+        "",
+    )?;
+    let cat_gift = db::create_category(
+        db,
+        "Paket Hadiah",
+        "paket-hadiah",
+        "Hampers & paket spesial",
+        "gift",
+        "",
+    )?;
 
     // --- Products ---
     let products = vec![
@@ -114,14 +146,24 @@ pub fn seed_if_empty(db: &Db) -> Result<()> {
 
     // --- Banners ---
     let banners = vec![
-        Banner { title: "Kopi Nusantara Pilihan".into(),
+        Banner {
+            title: "Kopi Nusantara Pilihan".into(),
             subtitle: "Diseduh dari biji terbaik Aceh sampai Lampung".into(),
-            button_text: "Belanja Kopi".into(), link_url: "/category/kopi".into(),
-            sort_order: 1, is_active: true, ..Default::default() },
-        Banner { title: "Gratis Ongkir se-Indonesia".into(),
+            button_text: "Belanja Kopi".into(),
+            link_url: "/category/kopi".into(),
+            sort_order: 1,
+            is_active: true,
+            ..Default::default()
+        },
+        Banner {
+            title: "Gratis Ongkir se-Indonesia".into(),
             subtitle: "Minimal belanja Rp 150.000, berlaku semua produk".into(),
-            button_text: "Mulai Belanja".into(), link_url: "/products".into(),
-            sort_order: 2, is_active: true, ..Default::default() },
+            button_text: "Mulai Belanja".into(),
+            link_url: "/products".into(),
+            sort_order: 2,
+            is_active: true,
+            ..Default::default()
+        },
     ];
     for b in &banners {
         db::create_banner(db, b)?;

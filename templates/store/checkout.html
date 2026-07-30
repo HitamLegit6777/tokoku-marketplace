@@ -1,5 +1,6 @@
 {% extends "store/base.html" %}
 {% block title %}Checkout{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 {% block content %}
 <div class="container page-wrap">
     <nav class="breadcrumb"><a href="/">Beranda</a> <span>/</span> <a href="/cart">Keranjang</a> <span>/</span> <span>Checkout</span></nav>
@@ -12,11 +13,11 @@
                 <div class="form-grid">
                     <div class="form-field">
                         <label>Nama Lengkap <span class="req">*</span></label>
-                        <input type="text" name="customer_name" class="form-input" required placeholder="Nama penerima">
+                        <input type="text" name="customer_name" class="form-input" required maxlength="100" placeholder="Nama penerima">
                     </div>
                     <div class="form-field">
                         <label>Nomor WhatsApp <span class="req">*</span></label>
-                        <input type="tel" name="customer_phone" class="form-input" required placeholder="08xxxxxxxxxx">
+                        <input type="tel" name="customer_phone" class="form-input" required maxlength="40" placeholder="08xxxxxxxxxx">
                     </div>
                     <div class="form-field full">
                         <label>Email (opsional)</label>
@@ -24,7 +25,7 @@
                     </div>
                     <div class="form-field full">
                         <label>Alamat Lengkap <span class="req">*</span></label>
-                        <textarea name="shipping_address" class="form-input" rows="3" required placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"></textarea>
+                        <textarea name="shipping_address" class="form-input" rows="3" required maxlength="1000" placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"></textarea>
                     </div>
                     <div class="form-field">
                         <label>Kota / Kabupaten</label>

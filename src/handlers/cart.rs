@@ -1,7 +1,7 @@
 // Cart handlers: view, add, update, remove, and a small JSON count endpoint used
 // by the header badge.
-use crate::filters;
 use crate::db;
+use crate::filters;
 use crate::models::CartItem;
 use crate::services::cart;
 use crate::state::AppState;
@@ -32,9 +32,21 @@ pub async fn view_cart(State(state): State<AppState>, session: Session) -> Respo
     let subtotal = cart::cart_subtotal(&items);
     let settings = &s.settings;
     let qualifies_free = settings.shipping_free_min > 0 && subtotal >= settings.shipping_free_min;
-    let shipping_estimate = if qualifies_free { 0 } else { settings.shipping_flat };
+    let shipping_estimate = if qualifies_free {
+        0
+    } else {
+        settings.shipping_flat
+    };
     let free_shipping_min = settings.shipping_free_min;
-    CartTemplate { s, items, subtotal, shipping_estimate, free_shipping_min, qualifies_free }.page()
+    CartTemplate {
+        s,
+        items,
+        subtotal,
+        shipping_estimate,
+        free_shipping_min,
+        qualifies_free,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -45,8 +57,12 @@ pub struct AddForm {
     pub redirect: Option<String>,
 }
 
-pub async fn add_to_cart(State(state): State<AppState>, session: Session, Form(form): Form<AddForm>) -> Response {
-    let qty = form.quantity.unwrap_or(1).max(1);
+pub async fn add_to_cart(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<AddForm>,
+) -> Response {
+    let qty = form.quantity.unwrap_or(1).clamp(1, 999);
     match db::get_product(&state.db, form.product_id) {
         Ok(Some(p)) if p.is_active && p.in_stock() => {
             let item = CartItem {
@@ -62,7 +78,10 @@ pub async fn add_to_cart(State(state): State<AppState>, session: Session, Form(f
         }
         _ => {}
     }
-    let to = form.redirect.unwrap_or_else(|| "/cart".into());
+    let to = form
+        .redirect
+        .filter(|p| p.starts_with('/') && !p.starts_with("//") && !p.contains(['\r', '\n']))
+        .unwrap_or_else(|| "/cart".into());
     Redirect::to(&to).into_response()
 }
 

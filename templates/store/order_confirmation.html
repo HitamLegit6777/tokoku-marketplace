@@ -1,5 +1,6 @@
 {% extends "store/base.html" %}
 {% block title %}Pesanan {{ order.order_number }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 {% block content %}
 <div class="container page-wrap narrow">
     <div class="order-success">
@@ -9,7 +10,7 @@
         <div class="order-number-box">
             <span>Nomor Pesanan</span>
             <strong id="orderNum">{{ order.order_number }}</strong>
-            <button class="copy-btn" onclick="copyText('{{ order.order_number }}')" title="Salin">{{ "clipboard"|icon|safe }}</button>
+            <button class="copy-btn" data-copy="{{ order.order_number }}" onclick="copyText(this.dataset.copy)" title="Salin">{{ "clipboard"|icon|safe }}</button>
         </div>
     </div>
 
@@ -29,9 +30,9 @@
             <p>Silakan transfer ke rekening berikut:</p>
             <div class="bank-card">
                 <div class="bank-row"><span>Bank</span><strong>{{ payment.bank_name }}</strong></div>
-                <div class="bank-row"><span>No. Rekening</span><strong class="copyable" onclick="copyText('{{ payment.bank_account_number }}')">{{ payment.bank_account_number }} {{ "clipboard"|icon|safe }}</strong></div>
+                <div class="bank-row"><span>No. Rekening</span><strong class="copyable" data-copy="{{ payment.bank_account_number }}" onclick="copyText(this.dataset.copy)">{{ payment.bank_account_number }} {{ "clipboard"|icon|safe }}</strong></div>
                 <div class="bank-row"><span>Atas Nama</span><strong>{{ payment.bank_account_holder }}</strong></div>
-                <div class="bank-row highlight"><span>Jumlah</span><strong class="copyable" onclick="copyText('{{ order.total }}')">{{ s.currency() }} {{ order.total|rupiah }} {{ "clipboard"|icon|safe }}</strong></div>
+                <div class="bank-row highlight"><span>Jumlah</span><strong class="copyable" data-copy="{{ order.total }}" onclick="copyText(this.dataset.copy)">{{ s.currency() }} {{ order.total|rupiah }} {{ "clipboard"|icon|safe }}</strong></div>
             </div>
         </div>
         {% endif %}
@@ -53,7 +54,7 @@
             <h3>{{ "card"|icon|safe }} E-Wallet</h3>
             <div class="bank-card">
                 <div class="bank-row"><span>Jenis</span><strong>{{ payment.ewallet_name }}</strong></div>
-                <div class="bank-row"><span>Nomor</span><strong class="copyable" onclick="copyText('{{ payment.ewallet_number }}')">{{ payment.ewallet_number }} {{ "clipboard"|icon|safe }}</strong></div>
+                <div class="bank-row"><span>Nomor</span><strong class="copyable" data-copy="{{ payment.ewallet_number }}" onclick="copyText(this.dataset.copy)">{{ payment.ewallet_number }} {{ "clipboard"|icon|safe }}</strong></div>
                 <div class="bank-row highlight"><span>Jumlah</span><strong>{{ s.currency() }} {{ order.total|rupiah }}</strong></div>
             </div>
         </div>

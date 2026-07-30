@@ -194,5 +194,9 @@ pub fn get_theme(id: &str) -> &'static Theme {
 
 /// All Google Fonts families concatenated for a single preload URL (dedup not needed).
 pub fn all_google_fonts() -> String {
-    THEMES.iter().map(|t| t.google_fonts).collect::<Vec<_>>().join("&")
+    THEMES
+        .iter()
+        .map(|t| t.google_fonts)
+        .collect::<Vec<_>>()
+        .join("&")
 }

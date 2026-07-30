@@ -153,7 +153,10 @@ impl Product {
     }
 
     pub fn main_image(&self) -> String {
-        self.image_list().into_iter().next().unwrap_or_else(|| "/static/img/placeholder.svg".into())
+        self.image_list()
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| "/static/img/placeholder.svg".into())
     }
 
     pub fn has_discount(&self) -> bool {
@@ -173,7 +176,11 @@ impl Product {
     }
 
     pub fn tag_list(&self) -> Vec<String> {
-        self.tags.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        self.tags
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     }
 
     /// Whether this product belongs to the given category id (template helper).
@@ -314,6 +321,6 @@ pub struct CartItem {
 
 impl CartItem {
     pub fn subtotal(&self) -> i64 {
-        self.price * self.quantity
+        self.price.saturating_mul(self.quantity)
     }
 }

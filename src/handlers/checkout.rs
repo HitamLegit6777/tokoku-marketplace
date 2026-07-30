@@ -1,10 +1,10 @@
 // Checkout & order handlers: checkout page, order placement, confirmation,
 // payment proof upload, order tracking, and the Midtrans payment webhook.
-use crate::filters;
 use crate::db;
+use crate::filters;
 use crate::models::{Coupon, Order, OrderItem, PaymentConfig, Settings};
-use crate::services::{cart, helpers, payment};
 use crate::services::payment::PaymentMethod;
+use crate::services::{cart, helpers, payment};
 use crate::state::AppState;
 use askama::Template;
 use axum::extract::{Form, Path, Query, State};
@@ -71,12 +71,26 @@ pub async fn checkout_page(State(state): State<AppState>, session: Session) -> R
     let subtotal = cart::cart_subtotal(&items);
     let settings = &s.settings;
     let free_shipping = settings.shipping_free_min > 0 && subtotal >= settings.shipping_free_min;
-    let shipping = if free_shipping { 0 } else { settings.shipping_flat };
+    let shipping = if free_shipping {
+        0
+    } else {
+        settings.shipping_flat
+    };
     let tax = ((subtotal as f64) * settings.tax_percent / 100.0).round() as i64;
     let total = subtotal + shipping + tax;
     let methods = payment::enabled_methods(&settings.payment());
 
-    CheckoutTemplate { s, items, subtotal, shipping, tax, total, methods, free_shipping }.page()
+    CheckoutTemplate {
+        s,
+        items,
+        subtotal,
+        shipping,
+        tax,
+        total,
+        methods,
+        free_shipping,
+    }
+    .page()
 }
 
 // ---------------------------------------------------------------------------
@@ -99,19 +113,75 @@ pub struct CheckoutForm {
     pub coupon_code: String,
 }
 
-pub async fn place_order(State(state): State<AppState>, session: Session, Form(form): Form<CheckoutForm>) -> Response {
-    let items = cart::get_cart(&session).await;
-    if items.is_empty() {
+pub async fn place_order(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<CheckoutForm>,
+) -> Response {
+    let session_items = cart::get_cart(&session).await;
+    if session_items.is_empty() {
         return Redirect::to("/cart").into_response();
     }
-    if form.customer_name.trim().is_empty() || form.customer_phone.trim().is_empty() || form.shipping_address.trim().is_empty() {
+    if form.customer_name.trim().is_empty()
+        || form.customer_phone.trim().is_empty()
+        || form.shipping_address.trim().is_empty()
+    {
         return redirect("/checkout?error=incomplete");
+    }
+    if form.customer_name.chars().count() > 100
+        || form.customer_phone.chars().count() > 40
+        || form.customer_email.chars().count() > 254
+        || form.shipping_address.chars().count() > 1000
+        || form.shipping_city.chars().count() > 100
+        || form.shipping_note.chars().count() > 1000
+        || form.coupon_code.chars().count() > 100
+    {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            "Data checkout terlalu panjang",
+        )
+            .into_response();
     }
 
     let settings: Settings = state.settings();
+    let methods = payment::enabled_methods(&settings.payment());
+    if !methods.iter().any(|m| m.id == form.payment_method) {
+        return redirect("/checkout?error=payment");
+    }
+
+    // Rebuild cart lines from the database so changed prices, disabled
+    // products and current stock are authoritative at checkout time.
+    let mut items = Vec::with_capacity(session_items.len());
+    for item in session_items {
+        let product = match db::get_product(&state.db, item.product_id) {
+            Ok(Some(p)) if p.is_active && p.in_stock() => p,
+            _ => return redirect("/cart?error=unavailable"),
+        };
+        let quantity = item.quantity.clamp(1, 999);
+        if product.track_stock && quantity > product.stock {
+            return redirect("/cart?error=stock");
+        }
+        items.push(crate::models::CartItem {
+            product_id: product.id,
+            name: product.name.clone(),
+            slug: product.slug.clone(),
+            price: product.price,
+            image: product.main_image(),
+            quantity,
+            max_stock: if product.track_stock {
+                product.stock
+            } else {
+                0
+            },
+        });
+    }
     let subtotal = cart::cart_subtotal(&items);
     let free_shipping = settings.shipping_free_min > 0 && subtotal >= settings.shipping_free_min;
-    let shipping = if free_shipping { 0 } else { settings.shipping_flat };
+    let shipping = if free_shipping {
+        0
+    } else {
+        settings.shipping_flat
+    };
     let tax = ((subtotal as f64) * settings.tax_percent / 100.0).round() as i64;
 
     // Apply coupon if valid
@@ -160,13 +230,15 @@ pub async fn place_order(State(state): State<AppState>, session: Session, Form(f
         })
         .collect();
 
-    let order_id = match db::create_order(&state.db, &order, &order_items) {
+    let order_id = match db::create_order(
+        &state.db,
+        &order,
+        &order_items,
+        coupon_used.as_ref().map(|c| c.id),
+    ) {
         Ok(id) => id,
         Err(e) => return server_error(e),
     };
-    if let Some(c) = coupon_used {
-        let _ = db::increment_coupon_use(&state.db, c.id);
-    }
     cart::clear_cart(&session).await;
 
     // If Midtrans selected, create snap transaction and redirect to payment page.
@@ -198,14 +270,25 @@ fn is_coupon_valid(c: &Coupon, subtotal: i64) -> bool {
     if c.max_uses > 0 && c.used_count >= c.max_uses {
         return false;
     }
+    if let Some(exp) = &c.expires_at {
+        if !exp.is_empty()
+            && exp.as_str()
+                < chrono::Utc::now()
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string()
+                    .as_str()
+        {
+            return false;
+        }
+    }
     true
 }
 
 fn compute_discount(c: &Coupon, subtotal: i64) -> i64 {
     let d = if c.r#type == "percent" {
-        (subtotal * c.value) / 100
+        ((subtotal as i128) * (c.value.clamp(0, 100) as i128) / 100).min(i64::MAX as i128) as i64
     } else {
-        c.value
+        c.value.max(0)
     };
     d.min(subtotal)
 }
@@ -214,7 +297,11 @@ fn compute_discount(c: &Coupon, subtotal: i64) -> i64 {
 // Order confirmation
 // ---------------------------------------------------------------------------
 
-pub async fn order_confirmation(State(state): State<AppState>, session: Session, Path(number): Path<String>) -> Response {
+pub async fn order_confirmation(
+    State(state): State<AppState>,
+    session: Session,
+    Path(number): Path<String>,
+) -> Response {
     let s = Shared::build(&state, &session).await;
     match db::get_order_by_number(&state.db, &number) {
         Ok(Some(order)) => {
@@ -223,7 +310,9 @@ pub async fn order_confirmation(State(state): State<AppState>, session: Session,
             let is_paid = order.payment_status == "paid";
             let msg = format!(
                 "Halo, saya ingin konfirmasi pesanan {} atas nama {} dengan total Rp {}.",
-                order.order_number, order.customer_name, helpers::format_rupiah(order.total)
+                order.order_number,
+                order.customer_name,
+                helpers::format_rupiah(order.total)
             );
             let wa_link = helpers::whatsapp_link(&s.settings.whatsapp, &msg);
             let show_bank = order.payment_method == "transfer";
@@ -231,8 +320,16 @@ pub async fn order_confirmation(State(state): State<AppState>, session: Session,
             let show_ewallet = order.payment_method == "ewallet";
             let show_cod = order.payment_method == "cod";
             OrderConfirmationTemplate {
-                s, order, payment, method_label, wa_link, is_paid,
-                show_bank, show_qris, show_ewallet, show_cod,
+                s,
+                order,
+                payment,
+                method_label,
+                wa_link,
+                is_paid,
+                show_bank,
+                show_qris,
+                show_ewallet,
+                show_cod,
             }
             .page()
         }
@@ -245,7 +342,13 @@ fn method_label(method: &str, cfg: &PaymentConfig) -> String {
     match method {
         "transfer" => "Transfer Bank".to_string(),
         "qris" => "QRIS".to_string(),
-        "ewallet" => if cfg.ewallet_name.is_empty() { "E-Wallet".to_string() } else { cfg.ewallet_name.clone() },
+        "ewallet" => {
+            if cfg.ewallet_name.is_empty() {
+                "E-Wallet".to_string()
+            } else {
+                cfg.ewallet_name.clone()
+            }
+        }
         "cod" => "Bayar di Tempat (COD)".to_string(),
         "midtrans" => "Pembayaran Online".to_string(),
         _ => method.to_string(),
@@ -256,7 +359,20 @@ fn method_label(method: &str, cfg: &PaymentConfig) -> String {
 // Payment proof upload
 // ---------------------------------------------------------------------------
 
-pub async fn upload_proof(State(state): State<AppState>, Path(number): Path<String>, mut multipart: axum::extract::Multipart) -> Response {
+pub async fn upload_proof(
+    State(state): State<AppState>,
+    Path(number): Path<String>,
+    mut multipart: axum::extract::Multipart,
+) -> Response {
+    let order = match db::get_order_by_number(&state.db, &number) {
+        Ok(Some(o))
+            if o.payment_status == "pending"
+                && ["transfer", "qris", "ewallet"].contains(&o.payment_method.as_str()) =>
+        {
+            o
+        }
+        _ => return (axum::http::StatusCode::NOT_FOUND, "Pesanan tidak ditemukan").into_response(),
+    };
     while let Ok(Some(field)) = multipart.next_field().await {
         let name = field.name().unwrap_or("").to_string();
         if name == "proof" {
@@ -264,7 +380,10 @@ pub async fn upload_proof(State(state): State<AppState>, Path(number): Path<Stri
             if let Ok(bytes) = field.bytes().await {
                 match crate::services::upload::save_image(&bytes, &filename) {
                     Ok(url) => {
-                        let _ = db::set_payment_proof(&state.db, &number, &url);
+                        if let Err(e) = db::set_payment_proof(&state.db, &order.order_number, &url)
+                        {
+                            return server_error(e);
+                        }
                     }
                     Err(e) => tracing::error!("proof upload failed: {e}"),
                 }
@@ -280,7 +399,13 @@ pub async fn upload_proof(State(state): State<AppState>, Path(number): Path<Stri
 
 pub async fn track_form(State(state): State<AppState>, session: Session) -> Response {
     let s = Shared::build(&state, &session).await;
-    TrackTemplate { s, order: None, searched: false, query: String::new() }.page()
+    TrackTemplate {
+        s,
+        order: None,
+        searched: false,
+        query: String::new(),
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -288,15 +413,27 @@ pub struct TrackQuery {
     pub order: Option<String>,
 }
 
-pub async fn track_result(State(state): State<AppState>, session: Session, Query(q): Query<TrackQuery>) -> Response {
+pub async fn track_result(
+    State(state): State<AppState>,
+    session: Session,
+    Query(q): Query<TrackQuery>,
+) -> Response {
     let s = Shared::build(&state, &session).await;
     let query = q.order.unwrap_or_default();
     let order = if query.trim().is_empty() {
         None
     } else {
-        db::get_order_by_number(&state.db, query.trim()).ok().flatten()
+        db::get_order_by_number(&state.db, query.trim())
+            .ok()
+            .flatten()
     };
-    TrackTemplate { s, order, searched: true, query }.page()
+    TrackTemplate {
+        s,
+        order,
+        searched: true,
+        query,
+    }
+    .page()
 }
 
 // ---------------------------------------------------------------------------
@@ -314,9 +451,15 @@ pub struct MidtransNotification {
     pub fraud_status: String,
 }
 
-pub async fn midtrans_webhook(State(state): State<AppState>, Json(notif): Json<MidtransNotification>) -> Response {
+pub async fn midtrans_webhook(
+    State(state): State<AppState>,
+    Json(notif): Json<MidtransNotification>,
+) -> Response {
     let settings = state.settings();
     let cfg = settings.payment();
+    if !cfg.midtrans_enabled || cfg.midtrans_server_key.is_empty() {
+        return (axum::http::StatusCode::NOT_FOUND, "not configured").into_response();
+    }
     if !payment::verify_midtrans_signature(
         &cfg.midtrans_server_key,
         &notif.order_id,
@@ -328,11 +471,29 @@ pub async fn midtrans_webhook(State(state): State<AppState>, Json(notif): Json<M
         return (axum::http::StatusCode::FORBIDDEN, "invalid signature").into_response();
     }
 
-    let payment_status = payment::map_midtrans_status(&notif.transaction_status, &notif.fraud_status);
+    let payment_status =
+        payment::map_midtrans_status(&notif.transaction_status, &notif.fraud_status);
     if let Ok(Some(order)) = db::get_order_by_number(&state.db, &notif.order_id) {
-        let order_status = if payment_status == "paid" { "processing" } else { order.order_status.as_str() };
-        let _ = db::update_order_status(&state.db, order.id, order_status, payment_status, &order.tracking_number);
-        tracing::info!("Midtrans webhook: order {} -> {}", notif.order_id, payment_status);
+        if order.payment_method != "midtrans" {
+            return (axum::http::StatusCode::FORBIDDEN, "wrong payment method").into_response();
+        }
+        let order_status = if payment_status == "paid" {
+            "processing"
+        } else {
+            order.order_status.as_str()
+        };
+        let _ = db::update_order_status(
+            &state.db,
+            order.id,
+            order_status,
+            payment_status,
+            &order.tracking_number,
+        );
+        tracing::info!(
+            "Midtrans webhook: order {} -> {}",
+            notif.order_id,
+            payment_status
+        );
     }
     (axum::http::StatusCode::OK, "ok").into_response()
 }

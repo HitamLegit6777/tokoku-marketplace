@@ -25,7 +25,11 @@ pub fn enabled_methods(cfg: &PaymentConfig) -> Vec<PaymentMethod> {
         ));
     }
     if cfg.ewallet_enabled {
-        let label = if cfg.ewallet_name.trim().is_empty() { "E-Wallet" } else { cfg.ewallet_name.as_str() };
+        let label = if cfg.ewallet_name.trim().is_empty() {
+            "E-Wallet"
+        } else {
+            cfg.ewallet_name.as_str()
+        };
         methods.push(PaymentMethod::new(
             "ewallet",
             label,
@@ -63,12 +67,21 @@ pub struct PaymentMethod {
 // Manual conversion since label is now String
 impl PaymentMethod {
     fn new(id: &'static str, label: &str, description: &'static str, icon: &'static str) -> Self {
-        PaymentMethod { id, label: label.to_string(), description, icon }
+        PaymentMethod {
+            id,
+            label: label.to_string(),
+            description,
+            icon,
+        }
     }
 }
 
 /// Midtrans Snap: create a transaction and return the redirect/snap token.
-pub async fn create_midtrans_snap(cfg: &PaymentConfig, order: &Order, base_url: &str) -> Result<MidtransSnap> {
+pub async fn create_midtrans_snap(
+    cfg: &PaymentConfig,
+    order: &Order,
+    base_url: &str,
+) -> Result<MidtransSnap> {
     if cfg.midtrans_server_key.is_empty() {
         return Err(anyhow!("Midtrans belum dikonfigurasi"));
     }
@@ -141,11 +154,17 @@ pub async fn create_midtrans_snap(cfg: &PaymentConfig, order: &Order, base_url: 
     }
     let body: serde_json::Value = resp.json().await?;
     let token = body["token"].as_str().unwrap_or_default().to_string();
-    let redirect_url = body["redirect_url"].as_str().unwrap_or_default().to_string();
+    let redirect_url = body["redirect_url"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
     if token.is_empty() {
         return Err(anyhow!("Midtrans tidak mengembalikan token"));
     }
-    Ok(MidtransSnap { token, redirect_url })
+    Ok(MidtransSnap {
+        token,
+        redirect_url,
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -175,7 +194,11 @@ pub fn verify_midtrans_signature(
 pub fn map_midtrans_status(transaction_status: &str, fraud_status: &str) -> &'static str {
     match transaction_status {
         "capture" => {
-            if fraud_status == "accept" { "paid" } else { "pending" }
+            if fraud_status == "accept" {
+                "paid"
+            } else {
+                "pending"
+            }
         }
         "settlement" => "paid",
         "pending" => "pending",
@@ -187,7 +210,11 @@ pub fn map_midtrans_status(transaction_status: &str, fraud_status: &str) -> &'st
 
 fn truncate_name(s: &str) -> String {
     // Midtrans caps item name length at 50 chars
-    if s.chars().count() <= 50 { s.to_string() } else { s.chars().take(50).collect() }
+    if s.chars().count() <= 50 {
+        s.to_string()
+    } else {
+        s.chars().take(50).collect()
+    }
 }
 
 fn base64_encode(s: &str) -> String {

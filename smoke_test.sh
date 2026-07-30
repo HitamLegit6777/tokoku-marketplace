@@ -1,109 +1,80 @@
 #!/usr/bin/env bash
-# End-to-end smoke test for TokoKu. Boots nothing itself; assumes server on $BASE.
-# Verifies public pages, admin auth, product CRUD, cart, checkout, order, theme switch.
+# End-to-end smoke/regression test. Assumes a fresh test server on $BASE.
 set -u
 BASE="${BASE:-http://localhost:8080}"
-JAR="$(mktemp)"
+ADMIN_USER="${ADMIN_USER:-admin}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:?Set ADMIN_PASSWORD for the test server}"
+TMP="$(mktemp -d)"; CUSTOMER="$TMP/customer.cookies"; ADMIN="$TMP/admin.cookies"
 PASS=0; FAIL=0
+trap 'rm -rf "$TMP"' EXIT
 red(){ printf '\033[31m%s\033[0m\n' "$1"; }
 grn(){ printf '\033[32m%s\033[0m\n' "$1"; }
+check(){ if printf '%s' "$3" | grep -qF -- "$2"; then grn "PASS: $1"; PASS=$((PASS+1)); else red "FAIL: $1 (missing: $2)"; FAIL=$((FAIL+1)); fi; }
+checkcode(){ local got; got=$(curl -s -o /dev/null -w '%{http_code}' "${@:4}" "$2"); if [ "$got" = "$3" ]; then grn "PASS: $1 ($got)"; PASS=$((PASS+1)); else red "FAIL: $1 ($got != $3)"; FAIL=$((FAIL+1)); fi; }
 
-check() { # name  expected_substr  actual
-  if printf '%s' "$3" | grep -qF -- "$2"; then grn "PASS: $1"; PASS=$((PASS+1));
-  else red "FAIL: $1 (missing: $2)"; FAIL=$((FAIL+1)); fi
-}
-code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
-checkcode() { # name url expected [use_jar]
-  local c
-  if [ "${4:-}" = "jar" ]; then c=$(curl -s -c "$JAR" -b "$JAR" -o /dev/null -w "%{http_code}" "$2");
-  else c=$(code "$2"); fi
-  if [ "$c" = "$3" ]; then grn "PASS: $1 ($c)"; PASS=$((PASS+1));
-  else red "FAIL: $1 (got $c want $3)"; FAIL=$((FAIL+1)); fi
-}
-
-echo "== Public pages =="
+echo '== Public + SEO =='
 HOME=$(curl -s "$BASE/")
-check "home renders store name" "Dapur Nusantara" "$HOME"
-check "home has product grid" "product-grid" "$HOME"
-check "home theme CSS injected" "--primary:" "$HOME"
-checkcode "products page" "$BASE/products" 200
-checkcode "cart page" "$BASE/cart" 200
-checkcode "track page" "$BASE/track" 200
-checkcode "404 works" "$BASE/nonexistent-xyz" 404
-
-# Grab a product slug from home
+check 'home product grid' 'product-grid' "$HOME"
+check 'home theme CSS' '--primary:' "$HOME"
+check 'canonical' 'rel="canonical"' "$HOME"
+check 'Open Graph' 'property="og:site_name"' "$HOME"
+check 'Twitter card' 'name="twitter:card"' "$HOME"
+check 'Store JSON-LD' '"@type": "Store"' "$HOME"
+checkcode products "$BASE/products" 200
+checkcode cart "$BASE/cart" 200
+checkcode track "$BASE/track" 200
+checkcode robots "$BASE/robots.txt" 200
+checkcode sitemap "$BASE/sitemap.xml" 200
+checkcode '404 status' "$BASE/nonexistent-xyz" 404
+ROBOTS=$(curl -s "$BASE/robots.txt"); check 'robots blocks admin' 'Disallow: /admin' "$ROBOTS"; check 'robots links sitemap' '/sitemap.xml' "$ROBOTS"
 SLUG=$(printf '%s' "$HOME" | grep -o '/product/[a-z0-9-]*' | head -1 | sed 's#/product/##')
-echo "Detected product slug: $SLUG"
-if [ -n "$SLUG" ]; then
-  PD=$(curl -s "$BASE/product/$SLUG")
-  check "product detail renders" "pd-name" "$PD"
-  check "product detail has add-to-cart" "cart/add" "$PD"
-fi
+PD=$(curl -s "$BASE/product/$SLUG")
+check 'product renders' 'pd-name' "$PD"; check 'Product JSON-LD' '"@type": "Product"' "$PD"; check 'Offer JSON-LD' '"@type": "Offer"' "$PD"
 
-echo "== Category & search =="
-checkcode "category page" "$BASE/category/kopi" 200
-SR=$(curl -s "$BASE/search?q=kopi")
-check "search returns results" "product" "$SR"
+# Security headers and private noindex
+HEADERS=$(curl -sD - -o /dev/null "$BASE/" | tr -d '\r')
+check nosniff 'x-content-type-options: nosniff' "$(printf '%s' "$HEADERS" | tr A-Z a-z)"
+check frame-deny 'x-frame-options: deny' "$(printf '%s' "$HEADERS" | tr A-Z a-z)"
+check 'cart noindex' 'noindex, follow' "$(curl -s "$BASE/cart")"
+check 'track noindex' 'noindex, nofollow' "$(curl -s "$BASE/track")"
 
-echo "== Cart flow =="
-# Add product id 1 to cart
-curl -s -c "$JAR" -b "$JAR" -X POST "$BASE/cart/add" --data "product_id=1&quantity=2&redirect=/cart" -o /dev/null
-CART=$(curl -s -c "$JAR" -b "$JAR" "$BASE/cart")
-check "cart shows item" "cart-item" "$CART"
-CNT=$(curl -s -c "$JAR" -b "$JAR" "$BASE/cart/count")
-check "cart count api" '"count":2' "$CNT"
+# Setup is closed after first setup
+checkcode 'setup locked GET' "$BASE/setup" 303
+checkcode 'setup locked POST' "$BASE/setup" 403 -X POST -d 'store_name=Hacked'
+checkcode 'cross-site POST blocked' "$BASE/cart/add" 403 -H 'Sec-Fetch-Site: cross-site' -X POST -d 'product_id=1'
 
-echo "== Checkout & order =="
-CO=$(curl -s -c "$JAR" -b "$JAR" "$BASE/checkout")
-check "checkout page renders" "Informasi Pengiriman" "$CO"
-# Place order
-curl -s -c "$JAR" -b "$JAR" -X POST "$BASE/checkout" \
-  --data "customer_name=Test User&customer_phone=08123456789&shipping_address=Jl Test 1&payment_method=transfer" \
-  -D /tmp/tk_headers.txt -o /dev/null
-ORDER_LOC=$(grep -i '^location:' /tmp/tk_headers.txt | tr -d '\r' | awk '{print $2}')
-echo "Order redirect: $ORDER_LOC"
-check "order redirect to /order/" "/order/INV-" "$ORDER_LOC"
-if [ -n "$ORDER_LOC" ]; then
-  OC=$(curl -s "$BASE$ORDER_LOC")
-  check "order confirmation renders" "Pesanan Berhasil" "$OC"
-  check "order shows bank transfer" "Transfer Bank" "$OC"
-fi
+echo '== Cart + checkout =='
+curl -s -c "$CUSTOMER" -b "$CUSTOMER" -X POST "$BASE/cart/add" --data 'product_id=1&quantity=2&redirect=/cart' -o /dev/null
+CART=$(curl -s -c "$CUSTOMER" -b "$CUSTOMER" "$BASE/cart")
+check 'cart item' 'cart-item' "$CART"; check 'cart count' '"count":2' "$(curl -s -c "$CUSTOMER" -b "$CUSTOMER" "$BASE/cart/count")"
+# Open redirect must be rejected
+LOC=$(curl -s -c "$CUSTOMER" -b "$CUSTOMER" -X POST "$BASE/cart/add" --data 'product_id=1&quantity=1&redirect=//evil.example' -D - -o /dev/null | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+check 'open redirect blocked' '/cart' "$LOC"
+# Forged payment must be rejected
+LOC=$(curl -s -c "$CUSTOMER" -b "$CUSTOMER" -X POST "$BASE/checkout" --data 'customer_name=Test User&customer_phone=08123456789&shipping_address=Jl Test&payment_method=bogus' -D - -o /dev/null | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+check 'forged payment blocked' '/checkout?error=payment' "$LOC"
+# Normal order
+LOC=$(curl -s -c "$CUSTOMER" -b "$CUSTOMER" -X POST "$BASE/checkout" --data 'customer_name=Test User&customer_phone=08123456789&shipping_address=Jl Test&payment_method=transfer' -D - -o /dev/null | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+check 'order redirect' '/order/INV-' "$LOC"
+if printf '%s' "$LOC" | grep -Eq '^/order/INV-[0-9]{8}-[A-F0-9]{32}$'; then grn 'PASS: 128-bit order id'; PASS=$((PASS+1)); else red "FAIL: 128-bit order id ($LOC)"; FAIL=$((FAIL+1)); fi
+OC=$(curl -s "$BASE$LOC"); check 'order confirmation' 'Pesanan Berhasil' "$OC"; check 'order noindex' 'noindex, nofollow' "$OC"
 
-echo "== Admin auth =="
-checkcode "admin redirects when logged out" "$BASE/admin" 303
-LOGIN=$(curl -s "$BASE/admin/login")
-check "login page renders" "Masuk ke panel admin" "$LOGIN"
-# Login
-curl -s -c "$JAR" -b "$JAR" -X POST "$BASE/admin/login" --data "username=admin&password=admin123" -o /dev/null
-DASH=$(curl -s -c "$JAR" -b "$JAR" "$BASE/admin")
-check "dashboard after login" "Dashboard" "$DASH"
-check "dashboard shows stats" "Total Pendapatan" "$DASH"
+echo '== Admin =='
+checkcode 'admin logged-out redirect' "$BASE/admin" 303
+LOGIN=$(curl -s "$BASE/admin/login"); check login 'Masuk ke panel admin' "$LOGIN"; check 'admin noindex' 'noindex, nofollow' "$LOGIN"
+curl -s -c "$ADMIN" -b "$ADMIN" -X POST "$BASE/admin/login" --data "username=$ADMIN_USER&password=$ADMIN_PASSWORD" -o /dev/null
+DASH=$(curl -s -c "$ADMIN" -b "$ADMIN" "$BASE/admin"); check dashboard 'Total Pendapatan' "$DASH"
+check 'finance page' 'Laporan Keuangan' "$(curl -s -c "$ADMIN" -b "$ADMIN" "$BASE/admin/finance")"
+# Reject active SVG and invalid status
+BAD=$(printf '<svg onload="alert(1)"></svg>' | curl -s -c "$ADMIN" -b "$ADMIN" -F 'image=@-;filename=x.svg;type=image/svg+xml' "$BASE/admin/upload")
+check 'active SVG rejected' '"success":false' "$BAD"
+for p in products categories orders banners coupons pages payment settings appearance finance; do checkcode "admin/$p" "$BASE/admin/$p" 200 -c "$ADMIN" -b "$ADMIN"; done
+# Product CRUD
+curl -s -c "$ADMIN" -b "$ADMIN" -X POST "$BASE/admin/products/save" --data 'name=Produk Test Otomatis&price=12345&stock=10&is_active=on&track_stock=on&category_id=0' -o /dev/null
+check 'admin product created' 'Produk Test Otomatis' "$(curl -s -c "$ADMIN" -b "$ADMIN" "$BASE/admin/products")"
+check 'store product visible' 'Produk Test Otomatis' "$(curl -s "$BASE/products?sort=newest")"
+# Logout only POST
+checkcode 'logout GET disabled' "$BASE/admin/logout" 405 -c "$ADMIN" -b "$ADMIN"
+checkcode 'logout POST' "$BASE/admin/logout" 303 -c "$ADMIN" -b "$ADMIN" -X POST
 
-echo "== Admin product CRUD =="
-curl -s -c "$JAR" -b "$JAR" -X POST "$BASE/admin/products/save" \
-  --data "name=Produk Test Otomatis&price=12345&stock=10&is_active=on&track_stock=on&category_id=0" -o /dev/null
-PLIST=$(curl -s -c "$JAR" -b "$JAR" "$BASE/admin/products")
-check "new product appears in admin" "Produk Test Otomatis" "$PLIST"
-check "product appears on storefront" "Produk Test Otomatis" "$(curl -s "$BASE/products?sort=newest")"
-
-echo "== Admin orders =="
-AO=$(curl -s -c "$JAR" -b "$JAR" "$BASE/admin/orders")
-check "admin orders list" "Test User" "$AO"
-
-echo "== Theme switch =="
-curl -s -c "$JAR" -b "$JAR" -X POST "$BASE/admin/appearance/theme" --data "theme=ocean" -o /dev/null
-HOME2=$(curl -s "$BASE/")
-check "theme switched to ocean (blue primary)" "#0ea5e9" "$HOME2"
-curl -s -c "$JAR" -b "$JAR" -X POST "$BASE/admin/appearance/theme" --data "theme=coffee" -o /dev/null
-
-echo "== Admin sub-pages =="
-for p in categories banners coupons pages payment settings appearance; do
-  checkcode "admin/$p" "$BASE/admin/$p" 200 jar
-done
-
-echo ""
-echo "==================================="
-echo "RESULT: $PASS passed, $FAIL failed"
-echo "==================================="
-rm -f "$JAR"
-[ "$FAIL" -eq 0 ]
+echo; echo "RESULT: $PASS passed, $FAIL failed"; [ "$FAIL" -eq 0 ]

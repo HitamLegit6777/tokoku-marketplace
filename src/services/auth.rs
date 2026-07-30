@@ -1,5 +1,7 @@
 // Authentication helpers: password hashing and verification with Argon2.
-use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::password_hash::{
+    rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+};
 use argon2::Argon2;
 
 pub fn hash_password(password: &str) -> anyhow::Result<String> {

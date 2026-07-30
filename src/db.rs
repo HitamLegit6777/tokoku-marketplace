@@ -22,10 +22,7 @@ pub fn init(path: &str) -> Result<Db> {
         let conn = pool.get()?;
         conn.execute_batch(include_str!("../migrations/001_init.sql"))?;
         // Ensure the singleton settings row exists.
-        conn.execute(
-            "INSERT OR IGNORE INTO settings (id) VALUES (1)",
-            [],
-        )?;
+        conn.execute("INSERT OR IGNORE INTO settings (id) VALUES (1)", [])?;
     }
     Ok(pool)
 }
@@ -85,11 +82,29 @@ pub fn update_settings(db: &Db, s: &Settings) -> Result<()> {
             announcement=?21, announcement_on=?22, setup_done=?23, updated_at=datetime('now')
          WHERE id = 1",
         params![
-            s.store_name, s.tagline, s.description, s.logo_url, s.favicon_url,
-            s.hero_image_url, s.theme, s.phone, s.whatsapp, s.email, s.address,
-            s.instagram, s.facebook, s.tiktok, s.currency, s.shipping_flat,
-            s.shipping_free_min, s.tax_percent, s.payment_config, s.meta_keywords,
-            s.announcement, s.announcement_on as i64, s.setup_done as i64,
+            s.store_name,
+            s.tagline,
+            s.description,
+            s.logo_url,
+            s.favicon_url,
+            s.hero_image_url,
+            s.theme,
+            s.phone,
+            s.whatsapp,
+            s.email,
+            s.address,
+            s.instagram,
+            s.facebook,
+            s.tiktok,
+            s.currency,
+            s.shipping_flat,
+            s.shipping_free_min,
+            s.tax_percent,
+            s.payment_config,
+            s.meta_keywords,
+            s.announcement,
+            s.announcement_on as i64,
+            s.setup_done as i64,
         ],
     )?;
     Ok(())
@@ -176,14 +191,27 @@ pub fn get_category_by_slug(db: &Db, slug: &str) -> Result<Option<Category>> {
     )?;
     let mut rows = stmt.query_map(params![slug], |r| {
         Ok(Category {
-            id: r.get(0)?, name: r.get(1)?, slug: r.get(2)?, description: r.get(3)?,
-            image_url: r.get(4)?, icon: r.get(5)?, sort_order: r.get(6)?, product_count: 0,
+            id: r.get(0)?,
+            name: r.get(1)?,
+            slug: r.get(2)?,
+            description: r.get(3)?,
+            image_url: r.get(4)?,
+            icon: r.get(5)?,
+            sort_order: r.get(6)?,
+            product_count: 0,
         })
     })?;
     Ok(rows.next().transpose()?)
 }
 
-pub fn create_category(db: &Db, name: &str, slug: &str, desc: &str, icon: &str, image: &str) -> Result<i64> {
+pub fn create_category(
+    db: &Db,
+    name: &str,
+    slug: &str,
+    desc: &str,
+    icon: &str,
+    image: &str,
+) -> Result<i64> {
     let conn = db.get()?;
     conn.execute(
         "INSERT INTO categories (name, slug, description, icon, image_url) VALUES (?1,?2,?3,?4,?5)",
@@ -192,7 +220,15 @@ pub fn create_category(db: &Db, name: &str, slug: &str, desc: &str, icon: &str, 
     Ok(conn.last_insert_rowid())
 }
 
-pub fn update_category(db: &Db, id: i64, name: &str, slug: &str, desc: &str, icon: &str, image: &str) -> Result<()> {
+pub fn update_category(
+    db: &Db,
+    id: i64,
+    name: &str,
+    slug: &str,
+    desc: &str,
+    icon: &str,
+    image: &str,
+) -> Result<()> {
     let conn = db.get()?;
     conn.execute(
         "UPDATE categories SET name=?1, slug=?2, description=?3, icon=?4, image_url=?5 WHERE id=?6",
@@ -296,7 +332,11 @@ pub fn count_products(db: &Db, f: &ProductFilter) -> Result<i64> {
             esc
         ));
     }
-    let where_clause = if where_parts.is_empty() { String::new() } else { format!("WHERE {}", where_parts.join(" AND ")) };
+    let where_clause = if where_parts.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", where_parts.join(" AND "))
+    };
     let sql = format!("SELECT COUNT(*) FROM products {}", where_clause);
     let n: i64 = conn.query_row(&sql, [], |r| r.get(0))?;
     Ok(n)
@@ -324,15 +364,21 @@ pub fn get_product_by_slug(db: &Db, slug: &str) -> Result<Option<Product>> {
 
 pub fn get_product(db: &Db, id: i64) -> Result<Option<Product>> {
     let conn = db.get()?;
-    let sql = format!("SELECT {cols} FROM products WHERE id=?1", cols = PRODUCT_COLS);
+    let sql = format!(
+        "SELECT {cols} FROM products WHERE id=?1",
+        cols = PRODUCT_COLS
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query_map(params![id], |r| map_product(r))?;
+    let mut rows = stmt.query_map(params![id], map_product)?;
     Ok(rows.next().transpose()?)
 }
 
 pub fn increment_views(db: &Db, id: i64) {
     if let Ok(conn) = db.get() {
-        let _ = conn.execute("UPDATE products SET views = views + 1 WHERE id=?1", params![id]);
+        let _ = conn.execute(
+            "UPDATE products SET views = views + 1 WHERE id=?1",
+            params![id],
+        );
     }
 }
 
@@ -347,9 +393,23 @@ pub fn upsert_product(db: &Db, p: &Product, id: Option<i64>) -> Result<i64> {
                     weight_grams=?11, category_id=?12, images=?13, is_active=?14, is_featured=?15,
                     tags=?16, updated_at=datetime('now') WHERE id=?17",
                 params![
-                    p.name, p.slug, p.sku, p.description, p.short_desc, p.price, p.compare_price,
-                    p.cost_price, p.stock, p.track_stock as i64, p.weight_grams, p.category_id,
-                    p.images, p.is_active as i64, p.is_featured as i64, p.tags, pid
+                    p.name,
+                    p.slug,
+                    p.sku,
+                    p.description,
+                    p.short_desc,
+                    p.price,
+                    p.compare_price,
+                    p.cost_price,
+                    p.stock,
+                    p.track_stock as i64,
+                    p.weight_grams,
+                    p.category_id,
+                    p.images,
+                    p.is_active as i64,
+                    p.is_featured as i64,
+                    p.tags,
+                    pid
                 ],
             )?;
             Ok(pid)
@@ -379,7 +439,10 @@ pub fn delete_product(db: &Db, id: i64) -> Result<()> {
 
 pub fn toggle_product_active(db: &Db, id: i64) -> Result<()> {
     let conn = db.get()?;
-    conn.execute("UPDATE products SET is_active = 1 - is_active WHERE id=?1", params![id])?;
+    conn.execute(
+        "UPDATE products SET is_active = 1 - is_active WHERE id=?1",
+        params![id],
+    )?;
     Ok(())
 }
 
@@ -433,19 +496,49 @@ const ORDER_COLS: &str = "id, order_number, customer_name, customer_phone, custo
     payment_method, payment_status, order_status, payment_ref, payment_proof, tracking_number, \
     notes, created_at, updated_at";
 
-pub fn create_order(db: &Db, order: &Order, items: &[OrderItem]) -> Result<i64> {
+pub fn create_order(
+    db: &Db,
+    order: &Order,
+    items: &[OrderItem],
+    coupon_id: Option<i64>,
+) -> Result<i64> {
     let mut conn = db.get()?;
     let tx = conn.transaction()?;
+    // Claim coupon usage in the same transaction as the order. This prevents
+    // concurrent requests from exceeding max_uses.
+    if let Some(cid) = coupon_id {
+        let changed = tx.execute(
+            "UPDATE coupons SET used_count=used_count+1
+             WHERE id=?1 AND is_active=1 AND (max_uses=0 OR used_count < max_uses)",
+            params![cid],
+        )?;
+        if changed != 1 {
+            anyhow::bail!("Kupon sudah tidak tersedia");
+        }
+    }
     tx.execute(
         "INSERT INTO orders (order_number, customer_name, customer_phone, customer_email,
             shipping_address, shipping_city, shipping_note, subtotal, shipping_cost, tax,
             discount, total, payment_method, payment_status, order_status, payment_ref, notes)
          VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)",
         params![
-            order.order_number, order.customer_name, order.customer_phone, order.customer_email,
-            order.shipping_address, order.shipping_city, order.shipping_note, order.subtotal,
-            order.shipping_cost, order.tax, order.discount, order.total, order.payment_method,
-            order.payment_status, order.order_status, order.payment_ref, order.notes
+            order.order_number,
+            order.customer_name,
+            order.customer_phone,
+            order.customer_email,
+            order.shipping_address,
+            order.shipping_city,
+            order.shipping_note,
+            order.subtotal,
+            order.shipping_cost,
+            order.tax,
+            order.discount,
+            order.total,
+            order.payment_method,
+            order.payment_status,
+            order.order_status,
+            order.payment_ref,
+            order.notes
         ],
     )?;
     let order_id = tx.last_insert_rowid();
@@ -457,14 +550,20 @@ pub fn create_order(db: &Db, order: &Order, items: &[OrderItem]) -> Result<i64> 
         )?;
         // decrement stock & bump sold count
         if let Some(pid) = it.product_id {
-            tx.execute(
-                "UPDATE products SET stock = MAX(0, stock - ?1), sold = sold + ?1 WHERE id = ?2 AND track_stock = 1",
+            let tracked = tx.execute(
+                "UPDATE products SET stock = stock - ?1, sold = sold + ?1
+                 WHERE id = ?2 AND is_active=1 AND track_stock=1 AND stock >= ?1",
                 params![it.quantity, pid],
             )?;
-            tx.execute(
-                "UPDATE products SET sold = sold + ?1 WHERE id = ?2 AND track_stock = 0",
-                params![it.quantity, pid],
-            )?;
+            if tracked == 0 {
+                let untracked = tx.execute(
+                    "UPDATE products SET sold = sold + ?1 WHERE id=?2 AND is_active=1 AND track_stock=0",
+                    params![it.quantity, pid],
+                )?;
+                if untracked == 0 {
+                    anyhow::bail!("Stok produk '{}' tidak mencukupi", it.product_name);
+                }
+            }
         }
     }
     tx.commit()?;
@@ -475,7 +574,7 @@ pub fn get_order(db: &Db, id: i64) -> Result<Option<Order>> {
     let conn = db.get()?;
     let sql = format!("SELECT {cols} FROM orders WHERE id=?1", cols = ORDER_COLS);
     let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query_map(params![id], |r| map_order(r))?;
+    let mut rows = stmt.query_map(params![id], map_order)?;
     let mut order = match rows.next().transpose()? {
         Some(o) => o,
         None => return Ok(None),
@@ -486,9 +585,12 @@ pub fn get_order(db: &Db, id: i64) -> Result<Option<Order>> {
 
 pub fn get_order_by_number(db: &Db, number: &str) -> Result<Option<Order>> {
     let conn = db.get()?;
-    let sql = format!("SELECT {cols} FROM orders WHERE order_number=?1", cols = ORDER_COLS);
+    let sql = format!(
+        "SELECT {cols} FROM orders WHERE order_number=?1",
+        cols = ORDER_COLS
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query_map(params![number], |r| map_order(r))?;
+    let mut rows = stmt.query_map(params![number], map_order)?;
     let mut order = match rows.next().transpose()? {
         Some(o) => o,
         None => return Ok(None),
@@ -505,8 +607,14 @@ fn get_order_items(db: &Db, order_id: i64) -> Result<Vec<OrderItem>> {
     )?;
     let rows = stmt.query_map(params![order_id], |r| {
         Ok(OrderItem {
-            id: r.get(0)?, order_id: r.get(1)?, product_id: r.get(2)?, product_name: r.get(3)?,
-            product_image: r.get(4)?, price: r.get(5)?, quantity: r.get(6)?, subtotal: r.get(7)?,
+            id: r.get(0)?,
+            order_id: r.get(1)?,
+            product_id: r.get(2)?,
+            product_name: r.get(3)?,
+            product_image: r.get(4)?,
+            price: r.get(5)?,
+            quantity: r.get(6)?,
+            subtotal: r.get(7)?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -515,7 +623,9 @@ fn get_order_items(db: &Db, order_id: i64) -> Result<Vec<OrderItem>> {
 pub fn list_orders(db: &Db, status: Option<&str>, limit: i64, offset: i64) -> Result<Vec<Order>> {
     let conn = db.get()?;
     let where_clause = match status {
-        Some(s) if !s.is_empty() && s != "all" => format!("WHERE order_status = '{}'", s.replace('\'', "")),
+        Some(s) if !s.is_empty() && s != "all" => {
+            format!("WHERE order_status = '{}'", s.replace('\'', ""))
+        }
         _ => String::new(),
     };
     let sql = format!(
@@ -523,16 +633,82 @@ pub fn list_orders(db: &Db, status: Option<&str>, limit: i64, offset: i64) -> Re
         cols = ORDER_COLS
     );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map([], |r| map_order(r))?;
+    let rows = stmt.query_map([], map_order)?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-pub fn update_order_status(db: &Db, id: i64, order_status: &str, payment_status: &str, tracking: &str) -> Result<()> {
-    let conn = db.get()?;
-    conn.execute(
+pub fn update_order_status(
+    db: &Db,
+    id: i64,
+    order_status: &str,
+    payment_status: &str,
+    tracking: &str,
+) -> Result<()> {
+    let mut conn = db.get()?;
+    let tx = conn.transaction()?;
+    let old_status: String = tx.query_row(
+        "SELECT order_status FROM orders WHERE id=?1",
+        params![id],
+        |r| r.get(0),
+    )?;
+
+    // Stock is claimed when the order is created. Restore it exactly once on
+    // cancellation, and claim it atomically again when a cancelled order is
+    // reactivated. This also keeps the product `sold` counter consistent.
+    if old_status != "cancelled" && order_status == "cancelled" {
+        tx.execute(
+            "UPDATE products SET
+                stock = stock + COALESCE((SELECT SUM(quantity) FROM order_items WHERE order_id=?1 AND product_id=products.id),0),
+                sold = MAX(0, sold - COALESCE((SELECT SUM(quantity) FROM order_items WHERE order_id=?1 AND product_id=products.id),0))
+             WHERE id IN (SELECT product_id FROM order_items WHERE order_id=?1) AND track_stock=1",
+            params![id],
+        )?;
+        tx.execute(
+            "UPDATE products SET
+                sold = MAX(0, sold - COALESCE((SELECT SUM(quantity) FROM order_items WHERE order_id=?1 AND product_id=products.id),0))
+             WHERE id IN (SELECT product_id FROM order_items WHERE order_id=?1) AND track_stock=0",
+            params![id],
+        )?;
+    } else if old_status == "cancelled" && order_status != "cancelled" {
+        let mut stmt = tx.prepare(
+            "SELECT oi.product_id, oi.quantity, oi.product_name, p.track_stock
+             FROM order_items oi LEFT JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?1",
+        )?;
+        let rows = stmt
+            .query_map(params![id], |r| {
+                Ok((
+                    r.get::<_, Option<i64>>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, Option<i64>>(3)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(stmt);
+        for (pid, qty, name, tracked) in rows {
+            let Some(pid) = pid else { continue };
+            let changed = if tracked == Some(1) {
+                tx.execute(
+                    "UPDATE products SET stock=stock-?1, sold=sold+?1 WHERE id=?2 AND is_active=1 AND stock>=?1",
+                    params![qty, pid],
+                )?
+            } else {
+                tx.execute(
+                    "UPDATE products SET sold=sold+?1 WHERE id=?2 AND is_active=1",
+                    params![qty, pid],
+                )?
+            };
+            if changed != 1 {
+                anyhow::bail!("Stok produk '{}' tidak mencukupi", name);
+            }
+        }
+    }
+
+    tx.execute(
         "UPDATE orders SET order_status=?1, payment_status=?2, tracking_number=?3, updated_at=datetime('now') WHERE id=?4",
         params![order_status, payment_status, tracking, id],
     )?;
+    tx.commit()?;
     Ok(())
 }
 
@@ -548,7 +724,9 @@ pub fn set_payment_proof(db: &Db, order_number: &str, proof_url: &str) -> Result
 pub fn count_orders(db: &Db, status: Option<&str>) -> Result<i64> {
     let conn = db.get()?;
     let where_clause = match status {
-        Some(s) if !s.is_empty() && s != "all" => format!("WHERE order_status = '{}'", s.replace('\'', "")),
+        Some(s) if !s.is_empty() && s != "all" => {
+            format!("WHERE order_status = '{}'", s.replace('\'', ""))
+        }
         _ => String::new(),
     };
     let sql = format!("SELECT COUNT(*) FROM orders {}", where_clause);
@@ -570,11 +748,28 @@ pub fn create_user(db: &Db, username: &str, email: &str, password_hash: &str) ->
 
 pub fn get_user_by_username(db: &Db, username: &str) -> Result<Option<(i64, String, String)>> {
     let conn = db.get()?;
-    let mut stmt = conn.prepare("SELECT id, username, password_hash FROM users WHERE username=?1")?;
+    let mut stmt =
+        conn.prepare("SELECT id, username, password_hash FROM users WHERE username=?1")?;
     let mut rows = stmt.query_map(params![username], |r| {
-        Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+        ))
     })?;
     Ok(rows.next().transpose()?)
+}
+
+pub fn update_user_password(db: &Db, username: &str, password_hash: &str) -> Result<()> {
+    let conn = db.get()?;
+    let changed = conn.execute(
+        "UPDATE users SET password_hash=?1 WHERE username=?2",
+        params![password_hash, username],
+    )?;
+    if changed != 1 {
+        anyhow::bail!("Pengguna tidak ditemukan");
+    }
+    Ok(())
 }
 
 pub fn count_users(db: &Db) -> Result<i64> {
@@ -606,7 +801,7 @@ pub fn list_coupons(db: &Db) -> Result<Vec<Coupon>> {
         "SELECT id, code, type, value, min_purchase, max_uses, used_count, expires_at, is_active
          FROM coupons ORDER BY created_at DESC",
     )?;
-    let rows = stmt.query_map([], |r| map_coupon(r))?;
+    let rows = stmt.query_map([], map_coupon)?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
@@ -616,7 +811,7 @@ pub fn get_coupon_by_code(db: &Db, code: &str) -> Result<Option<Coupon>> {
         "SELECT id, code, type, value, min_purchase, max_uses, used_count, expires_at, is_active
          FROM coupons WHERE code=?1 COLLATE NOCASE",
     )?;
-    let mut rows = stmt.query_map(params![code], |r| map_coupon(r))?;
+    let mut rows = stmt.query_map(params![code], map_coupon)?;
     Ok(rows.next().transpose()?)
 }
 
@@ -625,7 +820,15 @@ pub fn create_coupon(db: &Db, c: &Coupon) -> Result<i64> {
     conn.execute(
         "INSERT INTO coupons (code, type, value, min_purchase, max_uses, expires_at, is_active)
          VALUES (?1,?2,?3,?4,?5,?6,?7)",
-        params![c.code, c.r#type, c.value, c.min_purchase, c.max_uses, c.expires_at, c.is_active as i64],
+        params![
+            c.code,
+            c.r#type,
+            c.value,
+            c.min_purchase,
+            c.max_uses,
+            c.expires_at,
+            c.is_active as i64
+        ],
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -641,7 +844,10 @@ pub fn update_coupon(db: &Db, id: i64, c: &Coupon) -> Result<()> {
 
 pub fn increment_coupon_use(db: &Db, id: i64) -> Result<()> {
     let conn = db.get()?;
-    conn.execute("UPDATE coupons SET used_count = used_count + 1 WHERE id=?1", params![id])?;
+    conn.execute(
+        "UPDATE coupons SET used_count = used_count + 1 WHERE id=?1",
+        params![id],
+    )?;
     Ok(())
 }
 
@@ -663,14 +869,25 @@ pub fn list_reviews_for_product(db: &Db, product_id: i64) -> Result<Vec<Review>>
     )?;
     let rows = stmt.query_map(params![product_id], |r| {
         Ok(Review {
-            id: r.get(0)?, product_id: r.get(1)?, customer_name: r.get(2)?, rating: r.get(3)?,
-            comment: r.get(4)?, is_approved: r.get::<_, i64>(5)? != 0, created_at: r.get(6)?,
+            id: r.get(0)?,
+            product_id: r.get(1)?,
+            customer_name: r.get(2)?,
+            rating: r.get(3)?,
+            comment: r.get(4)?,
+            is_approved: r.get::<_, i64>(5)? != 0,
+            created_at: r.get(6)?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-pub fn create_review(db: &Db, product_id: i64, name: &str, rating: i64, comment: &str) -> Result<i64> {
+pub fn create_review(
+    db: &Db,
+    product_id: i64,
+    name: &str,
+    rating: i64,
+    comment: &str,
+) -> Result<i64> {
     let conn = db.get()?;
     conn.execute(
         "INSERT INTO reviews (product_id, customer_name, rating, comment) VALUES (?1,?2,?3,?4)",
@@ -685,7 +902,11 @@ pub fn create_review(db: &Db, product_id: i64, name: &str, rating: i64, comment:
 
 pub fn list_pages(db: &Db, footer_only: bool) -> Result<Vec<Page>> {
     let conn = db.get()?;
-    let where_clause = if footer_only { "WHERE is_published=1 AND show_in_footer=1" } else { "" };
+    let where_clause = if footer_only {
+        "WHERE is_published=1 AND show_in_footer=1"
+    } else {
+        ""
+    };
     let sql = format!(
         "SELECT id, title, slug, content, is_published, show_in_footer FROM pages {} ORDER BY id",
         where_clause
@@ -693,8 +914,12 @@ pub fn list_pages(db: &Db, footer_only: bool) -> Result<Vec<Page>> {
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], |r| {
         Ok(Page {
-            id: r.get(0)?, title: r.get(1)?, slug: r.get(2)?, content: r.get(3)?,
-            is_published: r.get::<_, i64>(4)? != 0, show_in_footer: r.get::<_, i64>(5)? != 0,
+            id: r.get(0)?,
+            title: r.get(1)?,
+            slug: r.get(2)?,
+            content: r.get(3)?,
+            is_published: r.get::<_, i64>(4)? != 0,
+            show_in_footer: r.get::<_, i64>(5)? != 0,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -707,14 +932,24 @@ pub fn get_page_by_slug(db: &Db, slug: &str) -> Result<Option<Page>> {
     )?;
     let mut rows = stmt.query_map(params![slug], |r| {
         Ok(Page {
-            id: r.get(0)?, title: r.get(1)?, slug: r.get(2)?, content: r.get(3)?,
-            is_published: r.get::<_, i64>(4)? != 0, show_in_footer: r.get::<_, i64>(5)? != 0,
+            id: r.get(0)?,
+            title: r.get(1)?,
+            slug: r.get(2)?,
+            content: r.get(3)?,
+            is_published: r.get::<_, i64>(4)? != 0,
+            show_in_footer: r.get::<_, i64>(5)? != 0,
         })
     })?;
     Ok(rows.next().transpose()?)
 }
 
-pub fn upsert_page(db: &Db, title: &str, slug: &str, content: &str, id: Option<i64>) -> Result<i64> {
+pub fn upsert_page(
+    db: &Db,
+    title: &str,
+    slug: &str,
+    content: &str,
+    id: Option<i64>,
+) -> Result<i64> {
     let conn = db.get()?;
     match id {
         Some(pid) => {
@@ -755,8 +990,13 @@ pub fn list_banners(db: &Db, active_only: bool) -> Result<Vec<Banner>> {
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], |r| {
         Ok(Banner {
-            id: r.get(0)?, title: r.get(1)?, subtitle: r.get(2)?, image_url: r.get(3)?,
-            link_url: r.get(4)?, button_text: r.get(5)?, sort_order: r.get(6)?,
+            id: r.get(0)?,
+            title: r.get(1)?,
+            subtitle: r.get(2)?,
+            image_url: r.get(3)?,
+            link_url: r.get(4)?,
+            button_text: r.get(5)?,
+            sort_order: r.get(6)?,
             is_active: r.get::<_, i64>(7)? != 0,
         })
     })?;
@@ -808,36 +1048,57 @@ pub struct DashboardStats {
     pub sales_last_7_days: Vec<(String, i64)>,
 }
 
+#[allow(clippy::field_reassign_with_default)]
 pub fn dashboard_stats(db: &Db) -> Result<DashboardStats> {
     let conn = db.get()?;
     let mut s = DashboardStats::default();
 
     s.total_products = conn.query_row("SELECT COUNT(*) FROM products", [], |r| r.get(0))?;
-    s.active_products = conn.query_row("SELECT COUNT(*) FROM products WHERE is_active=1", [], |r| r.get(0))?;
+    s.active_products =
+        conn.query_row("SELECT COUNT(*) FROM products WHERE is_active=1", [], |r| {
+            r.get(0)
+        })?;
     s.total_orders = conn.query_row("SELECT COUNT(*) FROM orders", [], |r| r.get(0))?;
-    s.new_orders = conn.query_row("SELECT COUNT(*) FROM orders WHERE order_status='new'", [], |r| r.get(0))?;
+    s.new_orders = conn.query_row(
+        "SELECT COUNT(*) FROM orders WHERE order_status='new'",
+        [],
+        |r| r.get(0),
+    )?;
     s.total_revenue = conn.query_row(
-        "SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='paid'", [], |r| r.get(0),
+        "SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='paid'",
+        [],
+        |r| r.get(0),
     )?;
     s.revenue_today = conn.query_row(
         "SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='paid' AND date(created_at)=date('now')",
         [], |r| r.get(0),
     )?;
     s.pending_payments = conn.query_row(
-        "SELECT COUNT(*) FROM orders WHERE payment_status='pending'", [], |r| r.get(0),
+        "SELECT COUNT(*) FROM orders WHERE payment_status='pending'",
+        [],
+        |r| r.get(0),
     )?;
     s.low_stock = conn.query_row(
-        "SELECT COUNT(*) FROM products WHERE track_stock=1 AND stock <= 5 AND is_active=1", [], |r| r.get(0),
+        "SELECT COUNT(*) FROM products WHERE track_stock=1 AND stock <= 5 AND is_active=1",
+        [],
+        |r| r.get(0),
     )?;
     s.total_customers = conn.query_row(
-        "SELECT COUNT(DISTINCT customer_phone) FROM orders", [], |r| r.get(0),
+        "SELECT COUNT(DISTINCT customer_phone) FROM orders",
+        [],
+        |r| r.get(0),
     )?;
 
     // Recent orders
     s.recent_orders = list_orders(db, None, 8, 0)?;
 
     // Top products by sales
-    let f = ProductFilter { sort: "popular".into(), limit: 5, include_inactive: true, ..Default::default() };
+    let f = ProductFilter {
+        sort: "popular".into(),
+        limit: 5,
+        include_inactive: true,
+        ..Default::default()
+    };
     s.top_products = list_products(db, &f)?;
 
     // Sales for the last 7 days
@@ -878,18 +1139,18 @@ pub struct FinanceProduct {
 /// store's minor-unit-free integer currency (whole Rupiah).
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct FinanceReport {
-    pub period: String,      // label describing the range (e.g. "30 hari terakhir")
-    pub start_date: String,  // inclusive yyyy-mm-dd
-    pub end_date: String,    // inclusive yyyy-mm-dd
+    pub period: String,     // label describing the range (e.g. "30 hari terakhir")
+    pub start_date: String, // inclusive yyyy-mm-dd
+    pub end_date: String,   // inclusive yyyy-mm-dd
     // Headline figures (paid orders only)
-    pub gross_revenue: i64,  // sum of order totals
-    pub product_sales: i64,  // sum of item subtotals (before shipping/tax/discount)
+    pub gross_revenue: i64, // sum of order totals
+    pub product_sales: i64, // sum of item subtotals (before shipping/tax/discount)
     pub shipping_income: i64,
     pub tax_collected: i64,
     pub discounts_given: i64,
-    pub cogs: i64,           // cost of goods sold (from product cost_price)
-    pub gross_profit: i64,   // product_sales - cogs
-    pub net_profit: i64,     // gross_revenue - cogs (shipping/tax pass-through kept)
+    pub cogs: i64,         // cost of goods sold (from product cost_price)
+    pub gross_profit: i64, // product_sales - cogs
+    pub net_profit: i64,   // gross_revenue - cogs (shipping/tax pass-through kept)
     pub paid_orders: i64,
     pub avg_order_value: i64,
     pub margin_percent: f64, // gross_profit / product_sales * 100
@@ -900,15 +1161,16 @@ pub struct FinanceReport {
     pub refunded_orders: i64,
     pub cancelled_orders: i64,
     // Breakdowns
-    pub monthly: Vec<FinanceRow>,        // last up-to-12 months revenue
-    pub by_payment: Vec<FinanceRow>,     // paid revenue grouped by method
+    pub monthly: Vec<FinanceRow>,    // last up-to-12 months revenue
+    pub by_payment: Vec<FinanceRow>, // paid revenue grouped by method
     pub top_products: Vec<FinanceProduct>,
-    pub max_monthly: i64,                // for chart scaling
+    pub max_monthly: i64, // for chart scaling
 }
 
 /// Build a financial report over the last `days` days (inclusive of today).
 /// COGS is derived by joining sold items to the current product `cost_price`;
 /// items whose product was deleted contribute zero cost.
+#[allow(clippy::field_reassign_with_default)]
 pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
     let conn = db.get()?;
     let days = days.clamp(1, 3650);
@@ -922,9 +1184,7 @@ pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
     };
     // Window bound as a datetime string usable in comparisons.
     let since = format!("-{} days", days - 1);
-    r.start_date = conn.query_row(
-        "SELECT date('now', ?1)", params![since], |row| row.get(0),
-    )?;
+    r.start_date = conn.query_row("SELECT date('now', ?1)", params![since], |row| row.get(0))?;
     r.end_date = conn.query_row("SELECT date('now')", [], |row| row.get(0))?;
 
     // Headline totals over paid orders in the window.
@@ -934,23 +1194,28 @@ pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
     let paid_where_o = "o.payment_status='paid' AND date(o.created_at) >= date('now', ?1)";
     r.gross_revenue = conn.query_row(
         &format!("SELECT COALESCE(SUM(total),0) FROM orders WHERE {paid_where}"),
-        params![since], |row| row.get(0),
+        params![since],
+        |row| row.get(0),
     )?;
     r.shipping_income = conn.query_row(
         &format!("SELECT COALESCE(SUM(shipping_cost),0) FROM orders WHERE {paid_where}"),
-        params![since], |row| row.get(0),
+        params![since],
+        |row| row.get(0),
     )?;
     r.tax_collected = conn.query_row(
         &format!("SELECT COALESCE(SUM(tax),0) FROM orders WHERE {paid_where}"),
-        params![since], |row| row.get(0),
+        params![since],
+        |row| row.get(0),
     )?;
     r.discounts_given = conn.query_row(
         &format!("SELECT COALESCE(SUM(discount),0) FROM orders WHERE {paid_where}"),
-        params![since], |row| row.get(0),
+        params![since],
+        |row| row.get(0),
     )?;
     r.paid_orders = conn.query_row(
         &format!("SELECT COUNT(*) FROM orders WHERE {paid_where}"),
-        params![since], |row| row.get(0),
+        params![since],
+        |row| row.get(0),
     )?;
 
     // Product sales (item subtotals) and COGS via join to current product cost.
@@ -959,7 +1224,8 @@ pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
             "SELECT COALESCE(SUM(oi.subtotal),0) FROM order_items oi \
              JOIN orders o ON o.id = oi.order_id WHERE {paid_where_o}"
         ),
-        params![since], |row| row.get(0),
+        params![since],
+        |row| row.get(0),
     )?;
     r.cogs = conn.query_row(
         &format!(
@@ -967,32 +1233,49 @@ pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
              FROM order_items oi JOIN orders o ON o.id = oi.order_id \
              LEFT JOIN products p ON p.id = oi.product_id WHERE {paid_where_o}"
         ),
-        params![since], |row| row.get(0),
+        params![since],
+        |row| row.get(0),
     )?;
 
     r.gross_profit = r.product_sales - r.cogs;
     r.net_profit = r.gross_revenue - r.cogs;
-    r.avg_order_value = if r.paid_orders > 0 { r.gross_revenue / r.paid_orders } else { 0 };
+    r.avg_order_value = if r.paid_orders > 0 {
+        r.gross_revenue / r.paid_orders
+    } else {
+        0
+    };
     r.margin_percent = if r.product_sales > 0 {
         (r.gross_profit as f64) / (r.product_sales as f64) * 100.0
-    } else { 0.0 };
+    } else {
+        0.0
+    };
 
     // Outstanding / non-revenue context (whole history, not windowed, so the
     // owner always sees money still owed and losses).
     r.pending_amount = conn.query_row(
-        "SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='pending'", [], |row| row.get(0),
+        "SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='pending'",
+        [],
+        |row| row.get(0),
     )?;
     r.pending_orders = conn.query_row(
-        "SELECT COUNT(*) FROM orders WHERE payment_status='pending'", [], |row| row.get(0),
+        "SELECT COUNT(*) FROM orders WHERE payment_status='pending'",
+        [],
+        |row| row.get(0),
     )?;
     r.refunded_amount = conn.query_row(
-        "SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='refunded'", [], |row| row.get(0),
+        "SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='refunded'",
+        [],
+        |row| row.get(0),
     )?;
     r.refunded_orders = conn.query_row(
-        "SELECT COUNT(*) FROM orders WHERE payment_status='refunded'", [], |row| row.get(0),
+        "SELECT COUNT(*) FROM orders WHERE payment_status='refunded'",
+        [],
+        |row| row.get(0),
     )?;
     r.cancelled_orders = conn.query_row(
-        "SELECT COUNT(*) FROM orders WHERE order_status='cancelled'", [], |row| row.get(0),
+        "SELECT COUNT(*) FROM orders WHERE order_status='cancelled'",
+        [],
+        |row| row.get(0),
     )?;
 
     // Monthly revenue for the last 12 months (paid orders).
@@ -1002,11 +1285,13 @@ pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
          GROUP BY m ORDER BY m",
     )?;
     r.monthly = stmt
-        .query_map([], |row| Ok(FinanceRow {
-            label: row.get::<_, String>(0)?,
-            orders: row.get(1)?,
-            amount: row.get(2)?,
-        }))?
+        .query_map([], |row| {
+            Ok(FinanceRow {
+                label: row.get::<_, String>(0)?,
+                orders: row.get(1)?,
+                amount: row.get(2)?,
+            })
+        })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     r.max_monthly = r.monthly.iter().map(|m| m.amount).max().unwrap_or(0).max(1);
 
@@ -1016,11 +1301,13 @@ pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
          FROM orders WHERE {paid_where} GROUP BY payment_method ORDER BY 3 DESC"
     ))?;
     r.by_payment = stmt
-        .query_map(params![since], |row| Ok(FinanceRow {
-            label: row.get::<_, String>(0)?,
-            orders: row.get(1)?,
-            amount: row.get(2)?,
-        }))?
+        .query_map(params![since], |row| {
+            Ok(FinanceRow {
+                label: row.get::<_, String>(0)?,
+                orders: row.get(1)?,
+                amount: row.get(2)?,
+            })
+        })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
     // Top products by revenue (paid orders in the window).
@@ -1050,5 +1337,11 @@ pub fn finance_report(db: &Db, days: i64) -> Result<FinanceReport> {
 
 /// Count of distinct products (used to decide whether to seed demo data).
 pub fn is_empty_store(db: &Db) -> Result<bool> {
-    Ok(count_products(db, &ProductFilter { include_inactive: true, ..Default::default() })? == 0)
+    Ok(count_products(
+        db,
+        &ProductFilter {
+            include_inactive: true,
+            ..Default::default()
+        },
+    )? == 0)
 }

@@ -1,22 +1,22 @@
 // Admin panel handlers. Provides a no-code management UI: dashboard, products,
 // categories, orders, banners, coupons, pages, appearance (themes), settings,
 // payment configuration, and image uploads.
-use crate::filters;
 use crate::db::{self, DashboardStats, ProductFilter};
+use crate::filters;
 use crate::models::*;
-use crate::services::{auth, helpers, themes};
 use crate::services::themes::Theme;
+use crate::services::{auth, helpers, themes};
 use crate::state::AppState;
 use askama::Template;
-use axum::extract::{Form, Multipart, Path, Query, State};
+use axum::extract::{ConnectInfo, Form, Multipart, Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::Json;
 use serde::Deserialize;
 use serde_json::json;
 use tower_sessions::Session;
 
-use super::{redirect, server_error};
 use super::TemplateResponse;
+use super::{redirect, server_error};
 
 const SESSION_USER_KEY: &str = "admin_user";
 
@@ -221,7 +221,11 @@ pub async fn login_page(State(state): State<AppState>, session: Session) -> Resp
     if current_user(&session).await.is_some() {
         return Redirect::to("/admin").into_response();
     }
-    LoginTemplate { error: String::new(), store_name: store_name(&state) }.page()
+    LoginTemplate {
+        error: String::new(),
+        store_name: store_name(&state),
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -230,17 +234,41 @@ pub struct LoginForm {
     pub password: String,
 }
 
-pub async fn login_submit(State(state): State<AppState>, session: Session, Form(form): Form<LoginForm>) -> Response {
+pub async fn login_submit(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<std::net::SocketAddr>,
+    session: Session,
+    Form(form): Form<LoginForm>,
+) -> Response {
+    // Include the username to prevent one client's attempts against unrelated
+    // accounts from sharing a bucket. Do not trust spoofable forwarding headers.
+    let limit_key = format!("{}:{}", addr.ip(), form.username.trim().to_lowercase());
+    if state.login_limiter.is_blocked(&limit_key) {
+        return (
+            axum::http::StatusCode::TOO_MANY_REQUESTS,
+            LoginTemplate {
+                error: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.".into(),
+                store_name: store_name(&state),
+            }
+            .render()
+            .unwrap_or_else(|_| "Terlalu banyak percobaan login.".into()),
+        )
+            .into_response();
+    }
     match db::get_user_by_username(&state.db, form.username.trim()) {
         Ok(Some((_, username, hash))) if auth::verify_password(&form.password, &hash) => {
+            state.login_limiter.success(&limit_key);
             let _ = session.insert(SESSION_USER_KEY, username).await;
             Redirect::to("/admin").into_response()
         }
-        _ => LoginTemplate {
-            error: "Username atau password salah.".into(),
-            store_name: store_name(&state),
+        _ => {
+            state.login_limiter.failure(limit_key);
+            LoginTemplate {
+                error: "Username atau password salah.".into(),
+                store_name: store_name(&state),
+            }
+            .page()
         }
-        .page(),
     }
 }
 
@@ -259,7 +287,13 @@ pub async fn dashboard(State(state): State<AppState>, session: Session) -> Respo
         Ok(s) => s,
         Err(e) => return server_error(e),
     };
-    let max_sales = stats.sales_last_7_days.iter().map(|(_, v)| *v).max().unwrap_or(0).max(1);
+    let max_sales = stats
+        .sales_last_7_days
+        .iter()
+        .map(|(_, v)| *v)
+        .max()
+        .unwrap_or(0)
+        .max(1);
     DashboardTemplate {
         user,
         store_name: store_name(&state),
@@ -280,7 +314,11 @@ pub struct FinanceQuery {
     pub period: Option<i64>,
 }
 
-pub async fn finance_report(State(state): State<AppState>, session: Session, Query(q): Query<FinanceQuery>) -> Response {
+pub async fn finance_report(
+    State(state): State<AppState>,
+    session: Session,
+    Query(q): Query<FinanceQuery>,
+) -> Response {
     let user = require_login!(session);
     // Restrict to a small set of sensible windows; default to 30 days.
     let days = match q.period.unwrap_or(30) {
@@ -313,43 +351,86 @@ pub struct ProductQuery {
     pub q: Option<String>,
 }
 
-pub async fn products_list(State(state): State<AppState>, session: Session, Query(q): Query<ProductQuery>) -> Response {
+pub async fn products_list(
+    State(state): State<AppState>,
+    session: Session,
+    Query(q): Query<ProductQuery>,
+) -> Response {
     let user = require_login!(session);
     let search = q.q.unwrap_or_default();
     let filter = ProductFilter {
-        search: if search.is_empty() { None } else { Some(search.clone()) },
+        search: if search.is_empty() {
+            None
+        } else {
+            Some(search.clone())
+        },
         include_inactive: true,
         sort: "newest".into(),
         limit: 200,
         ..Default::default()
     };
     let products = db::list_products(&state.db, &filter).unwrap_or_default();
-    let total = db::count_products(&state.db, &ProductFilter { include_inactive: true, ..Default::default() }).unwrap_or(0);
+    let total = db::count_products(
+        &state.db,
+        &ProductFilter {
+            include_inactive: true,
+            ..Default::default()
+        },
+    )
+    .unwrap_or(0);
     let categories = db::list_categories(&state.db).unwrap_or_default();
     ProductsTemplate {
-        user, store_name: store_name(&state), active: "products",
-        products, categories, currency: currency(&state), search, total,
+        user,
+        store_name: store_name(&state),
+        active: "products",
+        products,
+        categories,
+        currency: currency(&state),
+        search,
+        total,
     }
     .into_response()
 }
 
-pub async fn product_form(State(state): State<AppState>, session: Session, id: Option<Path<i64>>) -> Response {
+pub async fn product_form(
+    State(state): State<AppState>,
+    session: Session,
+    id: Option<Path<i64>>,
+) -> Response {
     let user = require_login!(session);
     let categories = db::list_categories(&state.db).unwrap_or_default();
     let (product, images, is_edit) = match id {
         Some(Path(pid)) => match db::get_product(&state.db, pid) {
             Ok(Some(p)) => {
                 let imgs = p.image_list();
-                let imgs = if imgs == vec!["/static/img/placeholder.svg".to_string()] { vec![] } else { imgs };
+                let imgs = if imgs == vec!["/static/img/placeholder.svg".to_string()] {
+                    vec![]
+                } else {
+                    imgs
+                };
                 (p, imgs, true)
             }
             _ => return redirect("/admin/products"),
         },
-        None => (Product { is_active: true, track_stock: true, ..Default::default() }, vec![], false),
+        None => (
+            Product {
+                is_active: true,
+                track_stock: true,
+                ..Default::default()
+            },
+            vec![],
+            false,
+        ),
     };
     ProductFormTemplate {
-        user, store_name: store_name(&state), active: "products",
-        product, categories, images, is_edit, currency: currency(&state),
+        user,
+        store_name: store_name(&state),
+        active: "products",
+        product,
+        categories,
+        images,
+        is_edit,
+        currency: currency(&state),
     }
     .into_response()
 }
@@ -403,7 +484,11 @@ fn parse_images(raw: &str) -> String {
     serde_json::to_string(&list).unwrap_or_else(|_| "[]".into())
 }
 
-pub async fn product_save(State(state): State<AppState>, session: Session, Form(form): Form<ProductSaveForm>) -> Response {
+pub async fn product_save(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<ProductSaveForm>,
+) -> Response {
     let _user = require_login!(session);
     if form.name.trim().is_empty() {
         return redirect("/admin/products/new");
@@ -411,7 +496,11 @@ pub async fn product_save(State(state): State<AppState>, session: Session, Form(
     let category_id = form.category_id.filter(|&c| c > 0);
     // Generate slug; keep existing slug on edit to avoid breaking links.
     let slug = match form.id {
-        Some(pid) => db::get_product(&state.db, pid).ok().flatten().map(|p| p.slug).unwrap_or_else(|| helpers::make_slug(&form.name)),
+        Some(pid) => db::get_product(&state.db, pid)
+            .ok()
+            .flatten()
+            .map(|p| p.slug)
+            .unwrap_or_else(|| helpers::make_slug(&form.name)),
         None => helpers::make_slug(&form.name),
     };
     let product = Product {
@@ -439,13 +528,21 @@ pub async fn product_save(State(state): State<AppState>, session: Session, Form(
     }
 }
 
-pub async fn product_delete(State(state): State<AppState>, session: Session, Path(id): Path<i64>) -> Response {
+pub async fn product_delete(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+) -> Response {
     let _user = require_login!(session);
     let _ = db::delete_product(&state.db, id);
     redirect("/admin/products")
 }
 
-pub async fn product_toggle(State(state): State<AppState>, session: Session, Path(id): Path<i64>) -> Response {
+pub async fn product_toggle(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+) -> Response {
     let _user = require_login!(session);
     let _ = db::toggle_product_active(&state.db, id);
     redirect("/admin/products")
@@ -458,7 +555,13 @@ pub async fn product_toggle(State(state): State<AppState>, session: Session, Pat
 pub async fn categories_page(State(state): State<AppState>, session: Session) -> Response {
     let user = require_login!(session);
     let categories = db::list_categories(&state.db).unwrap_or_default();
-    CategoriesTemplate { user, store_name: store_name(&state), active: "categories", categories }.page()
+    CategoriesTemplate {
+        user,
+        store_name: store_name(&state),
+        active: "categories",
+        categories,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -474,15 +577,35 @@ pub struct CategorySaveForm {
     pub image_url: String,
 }
 
-pub async fn category_save(State(state): State<AppState>, session: Session, Form(form): Form<CategorySaveForm>) -> Response {
+pub async fn category_save(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<CategorySaveForm>,
+) -> Response {
     let _user = require_login!(session);
     if form.name.trim().is_empty() {
         return redirect("/admin/categories");
     }
     let slug = helpers::make_slug(&form.name);
     let res = match form.id.filter(|&i| i > 0) {
-        Some(id) => db::update_category(&state.db, id, form.name.trim(), &slug, form.description.trim(), form.icon.trim(), form.image_url.trim()),
-        None => db::create_category(&state.db, form.name.trim(), &slug, form.description.trim(), form.icon.trim(), form.image_url.trim()).map(|_| ()),
+        Some(id) => db::update_category(
+            &state.db,
+            id,
+            form.name.trim(),
+            &slug,
+            form.description.trim(),
+            form.icon.trim(),
+            form.image_url.trim(),
+        ),
+        None => db::create_category(
+            &state.db,
+            form.name.trim(),
+            &slug,
+            form.description.trim(),
+            form.icon.trim(),
+            form.image_url.trim(),
+        )
+        .map(|_| ()),
     };
     match res {
         Ok(_) => redirect("/admin/categories"),
@@ -490,7 +613,11 @@ pub async fn category_save(State(state): State<AppState>, session: Session, Form
     }
 }
 
-pub async fn category_delete(State(state): State<AppState>, session: Session, Path(id): Path<i64>) -> Response {
+pub async fn category_delete(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+) -> Response {
     let _user = require_login!(session);
     let _ = db::delete_category(&state.db, id);
     redirect("/admin/categories")
@@ -505,10 +632,18 @@ pub struct OrderQuery {
     pub status: Option<String>,
 }
 
-pub async fn orders_list(State(state): State<AppState>, session: Session, Query(q): Query<OrderQuery>) -> Response {
+pub async fn orders_list(
+    State(state): State<AppState>,
+    session: Session,
+    Query(q): Query<OrderQuery>,
+) -> Response {
     let user = require_login!(session);
     let filter = q.status.unwrap_or_else(|| "all".into());
-    let status = if filter == "all" { None } else { Some(filter.as_str()) };
+    let status = if filter == "all" {
+        None
+    } else {
+        Some(filter.as_str())
+    };
     let orders = db::list_orders(&state.db, status, 200, 0).unwrap_or_default();
     let counts = OrderCounts {
         all: db::count_orders(&state.db, None).unwrap_or(0),
@@ -519,17 +654,30 @@ pub async fn orders_list(State(state): State<AppState>, session: Session, Query(
         cancelled: db::count_orders(&state.db, Some("cancelled")).unwrap_or(0),
     };
     OrdersTemplate {
-        user, store_name: store_name(&state), active: "orders",
-        orders, currency: currency(&state), filter, counts,
+        user,
+        store_name: store_name(&state),
+        active: "orders",
+        orders,
+        currency: currency(&state),
+        filter,
+        counts,
     }
     .into_response()
 }
 
-pub async fn order_detail(State(state): State<AppState>, session: Session, Path(id): Path<i64>) -> Response {
+pub async fn order_detail(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+) -> Response {
     let user = require_login!(session);
     match db::get_order(&state.db, id) {
         Ok(Some(order)) => OrderDetailTemplate {
-            user, store_name: store_name(&state), active: "orders", order, currency: currency(&state),
+            user,
+            store_name: store_name(&state),
+            active: "orders",
+            order,
+            currency: currency(&state),
         }
         .page(),
         _ => redirect("/admin/orders"),
@@ -544,9 +692,29 @@ pub struct OrderUpdateForm {
     pub tracking_number: String,
 }
 
-pub async fn order_update(State(state): State<AppState>, session: Session, Path(id): Path<i64>, Form(form): Form<OrderUpdateForm>) -> Response {
+pub async fn order_update(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+    Form(form): Form<OrderUpdateForm>,
+) -> Response {
     let _user = require_login!(session);
-    let _ = db::update_order_status(&state.db, id, &form.order_status, &form.payment_status, form.tracking_number.trim());
+    const ORDER_STATUSES: &[&str] = &["new", "processing", "shipped", "completed", "cancelled"];
+    const PAYMENT_STATUSES: &[&str] = &["pending", "paid", "failed", "refunded"];
+    if !ORDER_STATUSES.contains(&form.order_status.as_str())
+        || !PAYMENT_STATUSES.contains(&form.payment_status.as_str())
+    {
+        return (axum::http::StatusCode::BAD_REQUEST, "Status tidak valid").into_response();
+    }
+    if let Err(e) = db::update_order_status(
+        &state.db,
+        id,
+        &form.order_status,
+        &form.payment_status,
+        form.tracking_number.trim(),
+    ) {
+        return server_error(e);
+    }
     redirect(&format!("/admin/orders/{}", id))
 }
 
@@ -557,7 +725,13 @@ pub async fn order_update(State(state): State<AppState>, session: Session, Path(
 pub async fn banners_page(State(state): State<AppState>, session: Session) -> Response {
     let user = require_login!(session);
     let banners = db::list_banners(&state.db, false).unwrap_or_default();
-    BannersTemplate { user, store_name: store_name(&state), active: "banners", banners }.page()
+    BannersTemplate {
+        user,
+        store_name: store_name(&state),
+        active: "banners",
+        banners,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -577,14 +751,22 @@ pub struct BannerSaveForm {
     pub sort_order: i64,
 }
 
-pub async fn banner_save(State(state): State<AppState>, session: Session, Form(form): Form<BannerSaveForm>) -> Response {
+pub async fn banner_save(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<BannerSaveForm>,
+) -> Response {
     let _user = require_login!(session);
     let banner = Banner {
         title: form.title.trim().to_string(),
         subtitle: form.subtitle.trim().to_string(),
         image_url: form.image_url.trim().to_string(),
         link_url: form.link_url.trim().to_string(),
-        button_text: if form.button_text.trim().is_empty() { "Belanja Sekarang".into() } else { form.button_text.trim().to_string() },
+        button_text: if form.button_text.trim().is_empty() {
+            "Belanja Sekarang".into()
+        } else {
+            form.button_text.trim().to_string()
+        },
         sort_order: form.sort_order,
         is_active: true,
         ..Default::default()
@@ -599,7 +781,11 @@ pub async fn banner_save(State(state): State<AppState>, session: Session, Form(f
     }
 }
 
-pub async fn banner_delete(State(state): State<AppState>, session: Session, Path(id): Path<i64>) -> Response {
+pub async fn banner_delete(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+) -> Response {
     let _user = require_login!(session);
     let _ = db::delete_banner(&state.db, id);
     redirect("/admin/banners")
@@ -612,7 +798,14 @@ pub async fn banner_delete(State(state): State<AppState>, session: Session, Path
 pub async fn coupons_page(State(state): State<AppState>, session: Session) -> Response {
     let user = require_login!(session);
     let coupons = db::list_coupons(&state.db).unwrap_or_default();
-    CouponsTemplate { user, store_name: store_name(&state), active: "coupons", coupons, currency: currency(&state) }.page()
+    CouponsTemplate {
+        user,
+        store_name: store_name(&state),
+        active: "coupons",
+        coupons,
+        currency: currency(&state),
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -628,15 +821,27 @@ pub struct CouponSaveForm {
     pub max_uses: i64,
 }
 
-pub async fn coupon_save(State(state): State<AppState>, session: Session, Form(form): Form<CouponSaveForm>) -> Response {
+pub async fn coupon_save(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<CouponSaveForm>,
+) -> Response {
     let _user = require_login!(session);
     if form.code.trim().is_empty() {
         return redirect("/admin/coupons");
     }
     let coupon = Coupon {
         code: form.code.trim().to_uppercase(),
-        r#type: if form.r#type == "fixed" { "fixed".into() } else { "percent".into() },
-        value: form.value.max(0),
+        r#type: if form.r#type == "fixed" {
+            "fixed".into()
+        } else {
+            "percent".into()
+        },
+        value: if form.r#type == "percent" {
+            form.value.clamp(0, 100)
+        } else {
+            form.value.max(0)
+        },
         min_purchase: form.min_purchase.max(0),
         max_uses: form.max_uses.max(0),
         is_active: true,
@@ -652,7 +857,11 @@ pub async fn coupon_save(State(state): State<AppState>, session: Session, Form(f
     }
 }
 
-pub async fn coupon_delete(State(state): State<AppState>, session: Session, Path(id): Path<i64>) -> Response {
+pub async fn coupon_delete(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+) -> Response {
     let _user = require_login!(session);
     let _ = db::delete_coupon(&state.db, id);
     redirect("/admin/coupons")
@@ -665,19 +874,47 @@ pub async fn coupon_delete(State(state): State<AppState>, session: Session, Path
 pub async fn pages_list(State(state): State<AppState>, session: Session) -> Response {
     let user = require_login!(session);
     let pages = db::list_pages(&state.db, false).unwrap_or_default();
-    PagesTemplate { user, store_name: store_name(&state), active: "pages", pages }.page()
+    PagesTemplate {
+        user,
+        store_name: store_name(&state),
+        active: "pages",
+        pages,
+    }
+    .page()
 }
 
-pub async fn page_form(State(state): State<AppState>, session: Session, id: Option<Path<i64>>) -> Response {
+pub async fn page_form(
+    State(state): State<AppState>,
+    session: Session,
+    id: Option<Path<i64>>,
+) -> Response {
     let user = require_login!(session);
     let (page, is_edit) = match id {
-        Some(Path(pid)) => match db::list_pages(&state.db, false).unwrap_or_default().into_iter().find(|p| p.id == pid) {
+        Some(Path(pid)) => match db::list_pages(&state.db, false)
+            .unwrap_or_default()
+            .into_iter()
+            .find(|p| p.id == pid)
+        {
             Some(p) => (p, true),
             None => return redirect("/admin/pages"),
         },
-        None => (Page { is_published: true, show_in_footer: true, ..Default::default() }, false),
+        None => (
+            Page {
+                is_published: true,
+                show_in_footer: true,
+                ..Default::default()
+            },
+            false,
+        ),
     };
-    PageFormTemplate { user, store_name: store_name(&state), active: "pages", page, is_edit }.page()
+    PageFormTemplate {
+        user,
+        store_name: store_name(&state),
+        active: "pages",
+        page,
+        is_edit,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -689,20 +926,39 @@ pub struct PageSaveForm {
     pub content: String,
 }
 
-pub async fn page_save(State(state): State<AppState>, session: Session, Form(form): Form<PageSaveForm>) -> Response {
+pub async fn page_save(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<PageSaveForm>,
+) -> Response {
     let _user = require_login!(session);
     if form.title.trim().is_empty() {
         return redirect("/admin/pages");
     }
     let slug = match form.id.filter(|&i| i > 0) {
-        Some(pid) => db::list_pages(&state.db, false).unwrap_or_default().into_iter().find(|p| p.id == pid).map(|p| p.slug).unwrap_or_else(|| helpers::make_slug(&form.title)),
+        Some(pid) => db::list_pages(&state.db, false)
+            .unwrap_or_default()
+            .into_iter()
+            .find(|p| p.id == pid)
+            .map(|p| p.slug)
+            .unwrap_or_else(|| helpers::make_slug(&form.title)),
         None => helpers::make_slug(&form.title),
     };
-    let _ = db::upsert_page(&state.db, form.title.trim(), &slug, form.content.trim(), form.id.filter(|&i| i > 0));
+    let _ = db::upsert_page(
+        &state.db,
+        form.title.trim(),
+        &slug,
+        form.content.trim(),
+        form.id.filter(|&i| i > 0),
+    );
     redirect("/admin/pages")
 }
 
-pub async fn page_delete(State(state): State<AppState>, session: Session, Path(id): Path<i64>) -> Response {
+pub async fn page_delete(
+    State(state): State<AppState>,
+    session: Session,
+    Path(id): Path<i64>,
+) -> Response {
     let _user = require_login!(session);
     let _ = db::delete_page(&state.db, id);
     redirect("/admin/pages")
@@ -716,8 +972,11 @@ pub async fn appearance_page(State(state): State<AppState>, session: Session) ->
     let user = require_login!(session);
     let current_theme = state.settings().theme;
     AppearanceTemplate {
-        user, store_name: store_name(&state), active: "appearance",
-        themes: themes::THEMES, current_theme,
+        user,
+        store_name: store_name(&state),
+        active: "appearance",
+        themes: themes::THEMES,
+        current_theme,
     }
     .into_response()
 }
@@ -727,7 +986,11 @@ pub struct ThemeForm {
     pub theme: String,
 }
 
-pub async fn set_theme(State(state): State<AppState>, session: Session, Form(form): Form<ThemeForm>) -> Response {
+pub async fn set_theme(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<ThemeForm>,
+) -> Response {
     let _user = require_login!(session);
     // Validate theme id exists before saving.
     if themes::THEMES.iter().any(|t| t.id == form.theme) {
@@ -743,7 +1006,13 @@ pub async fn set_theme(State(state): State<AppState>, session: Session, Form(for
 pub async fn settings_page(State(state): State<AppState>, session: Session) -> Response {
     let user = require_login!(session);
     let settings = state.settings();
-    SettingsTemplate { user, store_name: store_name(&state), active: "settings", settings }.page()
+    SettingsTemplate {
+        user,
+        store_name: store_name(&state),
+        active: "settings",
+        settings,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -787,10 +1056,18 @@ pub struct SettingsSaveForm {
     pub announcement_on: Option<String>,
 }
 
-pub async fn settings_save(State(state): State<AppState>, session: Session, Form(form): Form<SettingsSaveForm>) -> Response {
+pub async fn settings_save(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<SettingsSaveForm>,
+) -> Response {
     let _user = require_login!(session);
     let mut settings = state.settings();
-    settings.store_name = if form.store_name.trim().is_empty() { "Toko Saya".into() } else { form.store_name.trim().to_string() };
+    settings.store_name = if form.store_name.trim().is_empty() {
+        "Toko Saya".into()
+    } else {
+        form.store_name.trim().to_string()
+    };
     settings.tagline = form.tagline.trim().to_string();
     settings.description = form.description.trim().to_string();
     settings.logo_url = form.logo_url.trim().to_string();
@@ -802,16 +1079,59 @@ pub async fn settings_save(State(state): State<AppState>, session: Session, Form
     settings.instagram = form.instagram.trim().to_string();
     settings.facebook = form.facebook.trim().to_string();
     settings.tiktok = form.tiktok.trim().to_string();
-    settings.currency = if form.currency.trim().is_empty() { "Rp".into() } else { form.currency.trim().to_string() };
+    settings.currency = if form.currency.trim().is_empty() {
+        "Rp".into()
+    } else {
+        form.currency.trim().to_string()
+    };
     settings.shipping_flat = form.shipping_flat.unwrap_or(settings.shipping_flat).max(0);
-    settings.shipping_free_min = form.shipping_free_min.unwrap_or(settings.shipping_free_min).max(0);
-    settings.tax_percent = form.tax_percent.unwrap_or(settings.tax_percent).max(0.0);
+    settings.shipping_free_min = form
+        .shipping_free_min
+        .unwrap_or(settings.shipping_free_min)
+        .max(0);
+    settings.tax_percent = form
+        .tax_percent
+        .unwrap_or(settings.tax_percent)
+        .clamp(0.0, 100.0);
     settings.meta_keywords = form.meta_keywords.trim().to_string();
     settings.announcement = form.announcement.trim().to_string();
     settings.announcement_on = cb(&form.announcement_on);
     settings.setup_done = true;
     match db::update_settings(&state.db, &settings) {
         Ok(_) => redirect("/admin/settings?saved=1"),
+        Err(e) => server_error(e),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct PasswordChangeForm {
+    pub current_password: String,
+    pub new_password: String,
+    pub confirm_password: String,
+}
+
+pub async fn password_change(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<PasswordChangeForm>,
+) -> Response {
+    let user = require_login!(session);
+    if form.new_password.len() < 10 || form.new_password != form.confirm_password {
+        return redirect("/admin/settings?password=invalid");
+    }
+    let valid = matches!(
+        db::get_user_by_username(&state.db, &user),
+        Ok(Some((_, _, ref hash))) if auth::verify_password(&form.current_password, hash)
+    );
+    if !valid {
+        return redirect("/admin/settings?password=wrong");
+    }
+    let hash = match auth::hash_password(&form.new_password) {
+        Ok(h) => h,
+        Err(e) => return server_error(e),
+    };
+    match db::update_user_password(&state.db, &user, &hash) {
+        Ok(_) => redirect("/admin/settings?password=saved"),
         Err(e) => server_error(e),
     }
 }
@@ -824,7 +1144,14 @@ pub async fn payment_page(State(state): State<AppState>, session: Session) -> Re
     let user = require_login!(session);
     let settings = state.settings();
     let payment = settings.payment();
-    PaymentTemplate { user, store_name: store_name(&state), active: "payment", settings, payment }.page()
+    PaymentTemplate {
+        user,
+        store_name: store_name(&state),
+        active: "payment",
+        settings,
+        payment,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -859,7 +1186,11 @@ pub struct PaymentSaveForm {
     pub midtrans_production: Option<String>,
 }
 
-pub async fn payment_save(State(state): State<AppState>, session: Session, Form(form): Form<PaymentSaveForm>) -> Response {
+pub async fn payment_save(
+    State(state): State<AppState>,
+    session: Session,
+    Form(form): Form<PaymentSaveForm>,
+) -> Response {
     let _user = require_login!(session);
     let mut settings = state.settings();
     let payment = json!({
@@ -889,7 +1220,11 @@ pub async fn payment_save(State(state): State<AppState>, session: Session, Form(
 // Image upload (AJAX, returns JSON {url})
 // ---------------------------------------------------------------------------
 
-pub async fn upload_image(State(_state): State<AppState>, session: Session, mut multipart: Multipart) -> Response {
+pub async fn upload_image(
+    State(_state): State<AppState>,
+    session: Session,
+    mut multipart: Multipart,
+) -> Response {
     if current_user(&session).await.is_none() {
         return (axum::http::StatusCode::UNAUTHORIZED, "unauthorized").into_response();
     }
@@ -898,7 +1233,10 @@ pub async fn upload_image(State(_state): State<AppState>, session: Session, mut 
         if let Ok(bytes) = field.bytes().await {
             match crate::services::upload::save_image(&bytes, &filename) {
                 Ok(url) => return Json(json!({ "success": true, "url": url })).into_response(),
-                Err(e) => return Json(json!({ "success": false, "error": e.to_string() })).into_response(),
+                Err(e) => {
+                    return Json(json!({ "success": false, "error": e.to_string() }))
+                        .into_response()
+                }
             }
         }
     }

@@ -1,13 +1,13 @@
 // Storefront (public) handlers: home, product listing, product detail, category,
 // search, content pages, and review submission.
-use crate::filters;
+use super::TemplateResponse;
 use crate::db::{self, ProductFilter};
+use crate::filters;
 use crate::models::{Banner, Category, Page, Product, Review, Settings};
 use crate::services::cart;
 use crate::services::themes::Theme;
 use crate::state::{AppState, StoreContext};
 use askama::Template;
-use super::TemplateResponse;
 use axum::extract::{Form, Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
@@ -43,9 +43,15 @@ impl Shared {
         }
     }
     // Template helpers
-    pub fn store_name(&self) -> &str { &self.settings.store_name }
-    pub fn currency(&self) -> &str { &self.settings.currency }
-    pub fn wa(&self) -> &str { &self.settings.whatsapp }
+    pub fn store_name(&self) -> &str {
+        &self.settings.store_name
+    }
+    pub fn currency(&self) -> &str {
+        &self.settings.currency
+    }
+    pub fn wa(&self) -> &str {
+        &self.settings.whatsapp
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -111,17 +117,60 @@ pub async fn home(State(state): State<AppState>, session: Session) -> Response {
     let s = Shared::build(&state, &session).await;
 
     // If the store has never been configured, guide the owner to setup.
-    if !s.settings.setup_done && db::count_products(&state.db, &ProductFilter { include_inactive: true, ..Default::default() }).unwrap_or(0) == 0 {
+    if !s.settings.setup_done
+        && db::count_products(
+            &state.db,
+            &ProductFilter {
+                include_inactive: true,
+                ..Default::default()
+            },
+        )
+        .unwrap_or(0)
+            == 0
+    {
         return Redirect::to("/setup").into_response();
     }
 
     let banners = db::list_banners(&state.db, true).unwrap_or_default();
-    let featured = db::list_products(&state.db, &ProductFilter { featured_only: true, limit: 8, sort: "newest".into(), ..Default::default() }).unwrap_or_default();
-    let newest = db::list_products(&state.db, &ProductFilter { limit: 8, sort: "newest".into(), ..Default::default() }).unwrap_or_default();
-    let best_sellers = db::list_products(&state.db, &ProductFilter { limit: 8, sort: "popular".into(), ..Default::default() }).unwrap_or_default();
+    let featured = db::list_products(
+        &state.db,
+        &ProductFilter {
+            featured_only: true,
+            limit: 8,
+            sort: "newest".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap_or_default();
+    let newest = db::list_products(
+        &state.db,
+        &ProductFilter {
+            limit: 8,
+            sort: "newest".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap_or_default();
+    let best_sellers = db::list_products(
+        &state.db,
+        &ProductFilter {
+            limit: 8,
+            sort: "popular".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap_or_default();
     let categories = db::list_categories(&state.db).unwrap_or_default();
 
-    HomeTemplate { s, banners, featured, newest, categories, best_sellers }.page()
+    HomeTemplate {
+        s,
+        banners,
+        featured,
+        newest,
+        categories,
+        best_sellers,
+    }
+    .page()
 }
 
 #[derive(Deserialize)]
@@ -131,11 +180,20 @@ pub struct ListQuery {
     pub q: Option<String>,
 }
 
-pub async fn product_list(State(state): State<AppState>, session: Session, Query(q): Query<ListQuery>) -> Response {
+pub async fn product_list(
+    State(state): State<AppState>,
+    session: Session,
+    Query(q): Query<ListQuery>,
+) -> Response {
     render_product_list(&state, &session, None, q, "Semua Produk").await
 }
 
-pub async fn category_page(State(state): State<AppState>, session: Session, Path(slug): Path<String>, Query(q): Query<ListQuery>) -> Response {
+pub async fn category_page(
+    State(state): State<AppState>,
+    session: Session,
+    Path(slug): Path<String>,
+    Query(q): Query<ListQuery>,
+) -> Response {
     match db::get_category_by_slug(&state.db, &slug) {
         Ok(Some(cat)) => {
             let title = cat.name.clone();
@@ -146,13 +204,23 @@ pub async fn category_page(State(state): State<AppState>, session: Session, Path
     }
 }
 
-pub async fn search(State(state): State<AppState>, session: Session, Query(q): Query<ListQuery>) -> Response {
+pub async fn search(
+    State(state): State<AppState>,
+    session: Session,
+    Query(q): Query<ListQuery>,
+) -> Response {
     let term = q.q.clone().unwrap_or_default();
     let title = format!("Hasil pencarian: \"{}\"", term);
     render_product_list(&state, &session, None, q, &title).await
 }
 
-async fn render_product_list(state: &AppState, session: &Session, category: Option<Category>, q: ListQuery, title: &str) -> Response {
+async fn render_product_list(
+    state: &AppState,
+    session: &Session,
+    category: Option<Category>,
+    q: ListQuery,
+    title: &str,
+) -> Response {
     let s = Shared::build(state, session).await;
     let sort = q.sort.unwrap_or_else(|| "newest".into());
     let page = q.page.unwrap_or(1).max(1);
@@ -161,7 +229,11 @@ async fn render_product_list(state: &AppState, session: &Session, category: Opti
 
     let filter = ProductFilter {
         category_id: category.as_ref().map(|c| c.id),
-        search: if search.is_empty() { None } else { Some(search.clone()) },
+        search: if search.is_empty() {
+            None
+        } else {
+            Some(search.clone())
+        },
         sort: sort.clone(),
         limit: per_page,
         offset: (page - 1) * per_page,
@@ -169,7 +241,11 @@ async fn render_product_list(state: &AppState, session: &Session, category: Opti
     };
     let count_filter = ProductFilter {
         category_id: category.as_ref().map(|c| c.id),
-        search: if search.is_empty() { None } else { Some(search.clone()) },
+        search: if search.is_empty() {
+            None
+        } else {
+            Some(search.clone())
+        },
         ..Default::default()
     };
 
@@ -180,7 +256,10 @@ async fn render_product_list(state: &AppState, session: &Session, category: Opti
     let total = db::count_products(&state.db, &count_filter).unwrap_or(0);
     let total_pages = ((total as f64) / (per_page as f64)).ceil() as i64;
     let categories = db::list_categories(&state.db).unwrap_or_default();
-    let active_category = category.as_ref().map(|c| c.slug.clone()).unwrap_or_default();
+    let active_category = category
+        .as_ref()
+        .map(|c| c.slug.clone())
+        .unwrap_or_default();
 
     ProductListTemplate {
         s,
@@ -197,7 +276,11 @@ async fn render_product_list(state: &AppState, session: &Session, category: Opti
     .page()
 }
 
-pub async fn product_detail(State(state): State<AppState>, session: Session, Path(slug): Path<String>) -> Response {
+pub async fn product_detail(
+    State(state): State<AppState>,
+    session: Session,
+    Path(slug): Path<String>,
+) -> Response {
     let s = Shared::build(&state, &session).await;
     match db::get_product_by_slug(&state.db, &slug) {
         Ok(Some(product)) => {
@@ -207,14 +290,27 @@ pub async fn product_detail(State(state): State<AppState>, session: Session, Pat
             let related = db::related_products(&state.db, &product, 4).unwrap_or_default();
             let avg_rating = product.avg_rating;
             let review_count = product.review_count;
-            ProductDetailTemplate { s, product, images, reviews, related, avg_rating, review_count }.page()
+            ProductDetailTemplate {
+                s,
+                product,
+                images,
+                reviews,
+                related,
+                avg_rating,
+                review_count,
+            }
+            .page()
         }
         Ok(None) => not_found(State(state), session).await,
         Err(e) => server_error(e),
     }
 }
 
-pub async fn content_page(State(state): State<AppState>, session: Session, Path(slug): Path<String>) -> Response {
+pub async fn content_page(
+    State(state): State<AppState>,
+    session: Session,
+    Path(slug): Path<String>,
+) -> Response {
     let s = Shared::build(&state, &session).await;
     match db::get_page_by_slug(&state.db, &slug) {
         Ok(Some(page)) if page.is_published => PageTemplate { s, page }.page(),
@@ -230,11 +326,24 @@ pub struct ReviewForm {
     pub comment: String,
 }
 
-pub async fn submit_review(State(state): State<AppState>, Path(slug): Path<String>, Form(form): Form<ReviewForm>) -> Response {
+pub async fn submit_review(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+    Form(form): Form<ReviewForm>,
+) -> Response {
+    let name = form.customer_name.trim();
+    let comment = form.comment.trim();
+    if name.chars().count() > 100 || comment.chars().count() > 2000 {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            "Ulasan terlalu panjang",
+        )
+            .into_response();
+    }
     if let Ok(Some(product)) = db::get_product_by_slug(&state.db, &slug) {
         let rating = form.rating.clamp(1, 5);
-        let name = if form.customer_name.trim().is_empty() { "Anonim".to_string() } else { form.customer_name };
-        let _ = db::create_review(&state.db, product.id, &name, rating, &form.comment);
+        let name = if name.is_empty() { "Anonim" } else { name };
+        let _ = db::create_review(&state.db, product.id, name, rating, comment);
     }
     Redirect::to(&format!("/product/{}#reviews", slug)).into_response()
 }
@@ -251,7 +360,9 @@ pub async fn not_found(State(state): State<AppState>, session: Session) -> Respo
 // ---------------------------------------------------------------------------
 
 fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// GET /robots.txt — allow crawling, disallow admin/cart/checkout, point to sitemap.
@@ -268,7 +379,14 @@ pub async fn robots_txt(State(state): State<AppState>) -> Response {
          Disallow: /order/\n\n\
          Sitemap: {base}/sitemap.xml\n"
     );
-    ([(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")], body).into_response()
+    (
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; charset=utf-8",
+        )],
+        body,
+    )
+        .into_response()
 }
 
 /// GET /sitemap.xml — home, product list, active products, categories, published pages.
@@ -278,20 +396,32 @@ pub async fn sitemap_xml(State(state): State<AppState>) -> Response {
     let mut add = |loc: String, priority: &str| {
         urls.push_str(&format!(
             "  <url><loc>{}</loc><changefreq>weekly</changefreq><priority>{}</priority></url>\n",
-            xml_escape(&loc), priority
+            xml_escape(&loc),
+            priority
         ));
     };
     add(format!("{base}/"), "1.0");
     add(format!("{base}/products"), "0.9");
 
-    let products = db::list_products(&state.db, &ProductFilter { limit: 5000, ..Default::default() }).unwrap_or_default();
+    let products = db::list_products(
+        &state.db,
+        &ProductFilter {
+            limit: 5000,
+            ..Default::default()
+        },
+    )
+    .unwrap_or_default();
     for p in &products {
         add(format!("{base}/product/{}", p.slug), "0.8");
     }
     for c in db::list_categories(&state.db).unwrap_or_default() {
         add(format!("{base}/category/{}", c.slug), "0.7");
     }
-    for pg in db::list_pages(&state.db, false).unwrap_or_default() {
+    for pg in db::list_pages(&state.db, false)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|p| p.is_published)
+    {
         add(format!("{base}/page/{}", pg.slug), "0.5");
     }
 
@@ -299,5 +429,12 @@ pub async fn sitemap_xml(State(state): State<AppState>) -> Response {
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
          <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{urls}</urlset>\n"
     );
-    ([(axum::http::header::CONTENT_TYPE, "application/xml; charset=utf-8")], body).into_response()
+    (
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "application/xml; charset=utf-8",
+        )],
+        body,
+    )
+        .into_response()
 }
