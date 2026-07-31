@@ -17,6 +17,33 @@
   if (backdrop) backdrop.addEventListener('click', close);
 })();
 
+// Search and filter the contextual theme gallery.
+(function () {
+  'use strict';
+  var search = document.getElementById('themeSearch');
+  var filters = document.getElementById('themeFilters');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.admin-theme-picker .theme-option-form'));
+  if (!search || !cards.length) return;
+  var layout = 'all';
+  function apply() {
+    var query = search.value.trim().toLowerCase();
+    cards.forEach(function (card) {
+      var matchesLayout = layout === 'all' || card.dataset.layout === layout;
+      var matchesText = !query || (card.dataset.search || '').toLowerCase().indexOf(query) !== -1;
+      card.hidden = !(matchesLayout && matchesText);
+    });
+  }
+  search.addEventListener('input', apply);
+  if (filters) filters.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-layout]');
+    if (!button) return;
+    filters.querySelectorAll('.theme-filter').forEach(function (item) { item.classList.remove('active'); });
+    button.classList.add('active');
+    layout = button.dataset.layout;
+    apply();
+  });
+})();
+
 // Inline edit for split-layout admin lists (categories, banners, coupons).
 // A table/list "Edit" button carries data-edit='{"field":"value",...}'.
 // It fills the target form (by [data-edit-form]) whose fields match those
