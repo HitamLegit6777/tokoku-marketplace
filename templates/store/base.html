@@ -24,7 +24,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?{{ s.theme.google_fonts }}&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/store.css">
-    <link rel="stylesheet" href="/static/css/theme-layouts.css">
     <link rel="stylesheet" href="/static/css/theme-signatures.css">
     <style>{{ s.theme_css|safe }}</style>
     <script type="application/ld+json">
@@ -42,7 +41,7 @@
     </script>
     {% block head_extra %}{% endblock %}
 </head>
-<body class="theme-{{ s.theme.id }} layout-{{ s.theme.layout }}">
+<body class="theme-{{ s.theme.id }}">
 {% if s.settings.announcement_on && !s.settings.announcement.is_empty() %}
 <div class="announcement-bar">
     <div class="marquee"><span>{{ s.settings.announcement }}</span><span aria-hidden="true">{{ s.settings.announcement }}</span></div>

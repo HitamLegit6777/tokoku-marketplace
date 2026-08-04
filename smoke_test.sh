@@ -69,6 +69,14 @@ check 'finance page' 'Laporan Keuangan' "$(curl -s -c "$ADMIN" -b "$ADMIN" "$BAS
 BAD=$(printf '<svg onload="alert(1)"></svg>' | curl -s -c "$ADMIN" -b "$ADMIN" -F 'image=@-;filename=x.svg;type=image/svg+xml' "$BASE/admin/upload")
 check 'active SVG rejected' '"success":false' "$BAD"
 for p in products categories orders banners coupons pages payment settings appearance finance; do checkcode "admin/$p" "$BASE/admin/$p" 200 -c "$ADMIN" -b "$ADMIN"; done
+# Every catalog entry must switch the rendered storefront, not only the picker.
+ORIGINAL_THEME=$(printf '%s' "$HOME" | grep -o 'body class="theme-[^"]*"' | head -1 | sed 's/.*theme-//;s/"//')
+THEME_IDS='sunset ocean forest berry midnight mono candy coffee nordic brutal aurora heritage beauty pharmacy grocery baby pets automotive property jewelry sport books furniture bakery seafood modest b2b thrift florist gaming'
+for theme in $THEME_IDS; do
+  curl -s -c "$ADMIN" -b "$ADMIN" -X POST "$BASE/admin/appearance/theme" --data "theme=$theme" -o /dev/null
+  check "theme $theme renders" "<body class=\"theme-$theme\">" "$(curl -s "$BASE/")"
+done
+if [ -n "$ORIGINAL_THEME" ]; then curl -s -c "$ADMIN" -b "$ADMIN" -X POST "$BASE/admin/appearance/theme" --data "theme=$ORIGINAL_THEME" -o /dev/null; fi
 # Product CRUD
 curl -s -c "$ADMIN" -b "$ADMIN" -X POST "$BASE/admin/products/save" --data 'name=Produk Test Otomatis&price=12345&stock=10&is_active=on&track_stock=on&category_id=0' -o /dev/null
 check 'admin product created' 'Produk Test Otomatis' "$(curl -s -c "$ADMIN" -b "$ADMIN" "$BASE/admin/products")"

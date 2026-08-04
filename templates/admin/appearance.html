@@ -4,7 +4,7 @@
 {% block content %}
 <div class="card">
     <h3>Pilih dari {{ themes.len() }} Tema Toko</h3>
-    <p class="muted">Setiap tema memiliki warna, tipografi, bentuk komponen, dan layout yang disesuaikan dengan jenis usaha.</p>
+    <p class="muted">Setiap tema memiliki sistem komponen, komposisi, tipografi, dan interaksi visual sendiri.</p>
     <div class="theme-toolbar">
         <input type="search" class="form-input" id="themeSearch" placeholder="Cari tema atau jenis usaha..." aria-label="Cari tema">
         <div class="theme-filters" id="themeFilters">
@@ -22,7 +22,7 @@
     </div>
     <div class="theme-picker admin-theme-picker">
         {% for t in themes %}
-        <form action="/admin/appearance/theme" method="post" class="theme-option-form" data-layout="{{ t.layout }}" data-search="{{ t.name }} {{ t.description }} {{ t.layout }}">
+        <form action="/admin/appearance/theme" method="post" class="theme-option-form" data-layout="{{ t.genre }}" data-search="{{ t.name }} {{ t.description }} {{ t.genre }}">
             <input type="hidden" name="theme" value="{{ t.id }}">
             <button type="submit" class="theme-card-btn {% if current_theme == t.id %}selected{% endif %}">
                 <span class="theme-preview" style="background:{{ t.hero_gradient }}">
@@ -32,7 +32,7 @@
                     <span class="tp-dot" style="background:{{ t.secondary }}"></span>
                     {% if current_theme == t.id %}<span class="tp-active">{{ "check"|icon|safe }} Aktif</span>{% endif %}
                 </span>
-                <span class="theme-title-row"><span class="theme-name">{{ t.name }}</span><span class="theme-layout">{{ t.layout }}</span></span>
+                <span class="theme-title-row"><span class="theme-name">{{ t.name }}</span><span class="theme-layout">{{ t.genre }}</span></span>
                 <span class="theme-desc">{{ t.description }}</span>
             </button>
         </form>
