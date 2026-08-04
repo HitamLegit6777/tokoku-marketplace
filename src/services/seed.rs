@@ -45,6 +45,9 @@ pub fn seed_if_empty(db: &Db) -> Result<()> {
         "midtrans_enabled": false
     })
     .to_string();
+    // Demo bootstrap is already a complete, usable storefront. Keep the setup
+    // wizard reserved for genuinely blank installations.
+    s.setup_done = true;
     db::update_settings(db, &s)?;
 
     // --- Categories ---

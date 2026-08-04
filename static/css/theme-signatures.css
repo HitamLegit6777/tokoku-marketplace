@@ -415,8 +415,8 @@
 /* Functional safeguards only; art direction remains theme-owned. */
 @media(max-width:860px){
   body{--section-space:38px}
-  .theme-ocean .hero-grid,.theme-nordic .hero-grid,.theme-beauty .hero-grid,.theme-property .hero-grid,.theme-furniture .hero-grid,.theme-gaming .hero-grid{grid-template-columns:1fr}
-  .theme-ocean .hero-visual,.theme-beauty .hero-visual{order:0}
+  .theme-ocean .hero-grid,.theme-nordic .hero-grid,.theme-beauty .hero-grid,.theme-property .hero-grid,.theme-furniture .hero-grid,.theme-gaming .hero-grid,.theme-mono .hero-grid,.theme-grocery .hero-grid,.theme-books .hero-grid,.theme-b2b .hero-grid,.theme-thrift .hero-grid,.theme-florist .hero-grid{grid-template-columns:1fr}
+  .theme-ocean .hero-visual,.theme-beauty .hero-visual,.theme-mono .hero-visual,.theme-grocery .hero-visual,.theme-books .hero-visual,.theme-b2b .hero-visual,.theme-thrift .hero-visual,.theme-florist .hero-visual{order:0}
   .theme-midnight .hero-grid,.theme-midnight .hero-visual,.theme-jewelry .hero-grid{min-height:560px;height:560px}
   .theme-nordic .hero-content,.theme-furniture .hero-content{margin:0;padding:36px 24px}
   .theme-property .hero-content{margin:24px;align-self:end}.theme-property .hero-visual{position:absolute}
